@@ -1,0 +1,214 @@
+<template>
+    <div class="system-top-bar">
+        <!-- 左侧：Logo + 系统名称 -->
+        <div class="top-bar-left">
+            <div class="system-logo">
+                <img src="/@/assets/logo.ico" alt="logo" />
+            </div>
+            <div class="system-info">
+                <h1 class="system-name">巡视巡察管理系统</h1>
+                <!-- <span class="system-subtitle">巡察监督管理系统</span> -->
+            </div>
+        </div>
+
+        <!-- 右侧：管理员信息 -->
+        <div class="top-bar-right">
+            <el-popover
+                @show="onCurrentNavMenu(true)"
+                @hide="onCurrentNavMenu(false)"
+                placement="bottom-end"
+                :hide-after="0"
+                :width="260"
+                trigger="click"
+                popper-class="admin-info-popover"
+                v-model:visible="state.showAdminInfoPopover"
+            >
+                <template #reference>
+                    <div class="admin-info" :class="state.isHover ? 'hover' : ''">
+                        <div class="admin-name">{{ adminInfo.nickname }}</div>
+                        <el-avatar :size="32" :src="fullUrl(adminInfo.avatar)"></el-avatar>
+                    </div>
+                </template>
+                <div>
+                    <div class="admin-info-content">
+                        <el-avatar :size="60" :src="fullUrl(adminInfo.avatar)"></el-avatar>
+                        <div class="admin-details">
+                            <div class="admin-name-large">{{ adminInfo.nickname }}</div>
+                            <div class="admin-lasttime">{{ adminInfo.last_login_time }}</div>
+                        </div>
+                    </div>
+                    <div class="admin-info-actions">
+                        <el-button @click="onAdminInfo" type="primary" plain>个人资料</el-button>
+                        <el-button @click="onLogout" type="danger" plain>退出登录</el-button>
+                    </div>
+                </div>
+            </el-popover>
+        </div>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { reactive } from 'vue'
+import { useAdminInfo } from '/@/stores/adminInfo'
+import { useSiteConfig } from '/@/stores/siteConfig'
+import { fullUrl } from '/@/utils/common'
+import { routePush } from '/@/utils/router'
+import { logout } from '/@/api/backend/index'
+import { Local } from '/@/utils/storage'
+import { ADMIN_INFO } from '/@/stores/constant/cacheKey'
+import router from '/@/router'
+
+const adminInfo = useAdminInfo()
+const siteConfig = useSiteConfig()
+
+const state = reactive({
+    isHover: false,
+    showAdminInfoPopover: false,
+})
+
+const onCurrentNavMenu = (status: boolean) => {
+    state.isHover = status
+}
+
+const onAdminInfo = () => {
+    state.showAdminInfoPopover = false
+    routePush({ name: 'routine/adminInfo' })
+}
+
+const onLogout = () => {
+    logout().then(() => {
+        Local.remove(ADMIN_INFO)
+        router.go(0)
+    })
+}
+</script>
+
+<style scoped lang="scss">
+.system-top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px; /* Apple 风格高度 */
+    /* 顶部导航 */
+    background: rgba(110, 20, 20, 0.72);
+    backdrop-filter: blur(20px) saturate(150%);
+    backdrop-filter: blur(20px) saturate(180%); /* 毛玻璃效果 */
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 1000;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* 左侧区域 */
+.top-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.system-logo {
+    width: 32px;
+    height: 32px;
+    
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+}
+
+.system-info {
+   
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.system-name {
+    font-size: 23px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+    letter-spacing: -0.022em; /* Apple 字距 */
+}
+
+.system-subtitle {
+    font-size: 13px;
+    font-weight: 400;
+    color: #fff;
+}
+
+/* 右侧区域 */
+.top-bar-right {
+    display: flex;
+    align-items: center;
+}
+
+.admin-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    &:hover,
+    &.hover {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+}
+
+.admin-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+}
+
+/* Popover 内容样式 */
+.admin-info-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 0;
+    gap: 12px;
+}
+
+.admin-details {
+    text-align: center;
+}
+
+.admin-name-large {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin-bottom: 4px;
+}
+
+.admin-lasttime {
+    font-size: 13px;
+    color: #86868b;
+}
+
+.admin-info-actions {
+    display: flex;
+    gap: 10px;
+    padding: 16px 0 0;
+    border-top: 0.5px solid rgba(0, 0, 0, 0.1);
+    justify-content: center;
+}
+</style>
+
+<style lang="scss">
+/* 全局 Popover 样式 */
+.admin-info-popover.el-popover {
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    border: 0.5px solid rgba(0, 0, 0, 0.1);
+}
+</style>

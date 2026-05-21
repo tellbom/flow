@@ -1,0 +1,1 @@
+import{r as t}from"./index-9d2c6145.js";async function o(e){return t.post("/api/project-grant",e)}async function c(e){return t.delete(`/api/project-grant/${encodeURIComponent(e)}`)}async function a(e,r){return t.put(`/api/project-grant/${encodeURIComponent(e)}/super`,r)}export{o as g,c as r,a as t};
