@@ -1,0 +1,394 @@
+/**
+ * workflow-tokens.scss
+ * 流程中心全局 Design Token
+ *
+ * 版本：F01
+ * 用途：所有流程中心前端组件的颜色 / 间距 / 圆角 / 字号唯一来源
+ * 引入：在项目全局入口（main.js / styles/index.scss）import 一次即可
+ *
+ * ╔══════════════════════════════════════════════════════════════╗
+ * ║  规则：组件内禁止出现以下硬编码值，必须使用对应 Token        ║
+ * ║  ✗  #0066cc / #0071e3 / #2997ff                             ║
+ * ║  ✗  #c62f2f / #3370ff / #409EFF / #007aff（旧三套色）       ║
+ * ║  ✗  散列 px 圆角（6/8/10/12/14/16/20px 不统一）             ║
+ * ║  ✗  渐变作为按钮 / 卡片装饰背景                              ║
+ * ║  ✗  box-shadow 用于按钮                                      ║
+ * ╚══════════════════════════════════════════════════════════════╝
+ */
+
+:root {
+
+  /* ================================================================
+     COLOR — Primary（Action Blue，对齐 DESIGN.md #0066cc）
+     ================================================================ */
+
+  --wf-primary:            #0066cc;   // 主交互色：链接 / 按钮 / 焦点环 / 激活态
+  --wf-primary-hover:      #0071e3;   // Hover 态（比 primary 稍亮）
+  --wf-primary-on-dark:    #2997ff;   // 深色背景上的主色（暗色面板专用）
+  --wf-primary-light:      #e8f0fb;   // 主色浅背景：选中行 / tag 底色 / 推荐人区背景
+  --wf-primary-border:     #b3d0f0;   // 主色边框：选中边框 / 虚线触发器
+
+
+  /* ================================================================
+     COLOR — Ink（文字）
+     ================================================================ */
+
+  --wf-ink:                #1d1d1f;   // 主文字（标题 / 重要信息）
+  --wf-ink-2:              #4e5969;   // 次要文字（标签 / 元信息）
+  --wf-ink-3:              #7a7a7a;   // 辅助文字（placeholder / 时间 / hint）
+  --wf-ink-disabled:       #c0c4cc;   // 禁用状态文字
+
+
+  /* ================================================================
+     COLOR — Surface（背景 / 画布）
+     ================================================================ */
+
+  --wf-canvas:             #ffffff;   // 纯白：卡片 / 抽屉 / 弹窗
+  --wf-bg:                 #f5f5f7;   // 页面背景（Canvas Parchment）
+  --wf-bg-card:            #fafafa;   // 卡片内嵌区域 / 表格奇数行
+  --wf-bg-section:         #f7f8fa;   // section header / 信息条背景
+
+
+  /* ================================================================
+     COLOR — Border（边线）
+     ================================================================ */
+
+  --wf-border:             #e0e0e0;   // Hairline（标准边框）
+  --wf-divider:            #f0f0f0;   // Divider Soft（分隔线，比 border 更淡）
+
+
+  /* ================================================================
+     COLOR — Semantic Status（语义状态色）
+     这些颜色绑定业务含义，不随主题色迁移
+     ================================================================ */
+
+  // Running / Active（流程进行中）
+  --wf-status-running:     #007aff;
+  --wf-status-running-bg:  #e8f3ff;
+
+  // Success / Completed（已完成 / 已通过）
+  --wf-success:            #34c759;
+  --wf-success-bg:         #d1fae5;
+  --wf-success-text:       #065f46;
+
+  // Warning / Rejected Return（驳回回退 / 警告）
+  --wf-warning:            #f59e0b;
+  --wf-warning-bg:         #fef3c7;
+  --wf-warning-text:       #92400e;
+
+  // Danger / Rejected Terminate（驳回终止 / 危险操作）
+  --wf-danger:             #ef4444;
+  --wf-danger-bg:          #fee2e2;
+  --wf-danger-text:        #991b1b;
+
+  // Neutral / Pending（待流转 / 未激活）
+  --wf-neutral:            #d1d5db;
+  --wf-neutral-bg:         #f3f4f6;
+  --wf-neutral-text:       #9ca3af;
+
+
+  /* ================================================================
+     COLOR — Avatar Gradient（人员头像渐变）
+     按姓名首字符哈希取色，固定 6 组，不随主题变化
+     ================================================================ */
+
+  --wf-avatar-0-from:      #0066cc;
+  --wf-avatar-0-to:        #0071e3;
+  --wf-avatar-1-from:      #34c759;
+  --wf-avatar-1-to:        #30d158;
+  --wf-avatar-2-from:      #f59e0b;
+  --wf-avatar-2-to:        #e8940f;
+  --wf-avatar-3-from:      #ef4444;
+  --wf-avatar-3-to:        #f87171;
+  --wf-avatar-4-from:      #8e44ad;
+  --wf-avatar-4-to:        #9b59b6;
+  --wf-avatar-5-from:      #16a085;
+  --wf-avatar-5-to:        #1abc9c;
+
+
+  /* ================================================================
+     SPACING
+     ================================================================ */
+
+  --wf-space-2:            2px;
+  --wf-space-4:            4px;    // xs：tight gap
+  --wf-space-6:            6px;
+  --wf-space-8:            8px;    // sm：chip padding / icon gap
+  --wf-space-12:           12px;
+  --wf-space-16:           16px;   // md：标准间距
+  --wf-space-20:           20px;
+  --wf-space-24:           24px;   // lg：section padding
+  --wf-space-32:           32px;   // xl：页面级内边距
+  --wf-space-48:           48px;   // 空状态占位高度基准
+
+
+  /* ================================================================
+     BORDER RADIUS
+     规则：不得在上述 Token 之外使用其他 px 圆角值
+     ================================================================ */
+
+  --wf-radius-sm:          6px;    // 紧凑元素：tag / badge / 小按钮 / input
+  --wf-radius-md:          10px;   // 中等元素：卡片内嵌区 / tab 内容区
+  --wf-radius-lg:          14px;   // 卡片主体 / 抽屉 section
+  --wf-radius-xl:          18px;   // 页面级容器 / dialog
+  --wf-radius-pill:        100px;  // Chip / 状态胶囊 / 触发按钮
+
+
+  /* ================================================================
+     SHADOW
+     规则：仅用于内容卡片，禁止用于按钮
+     ================================================================ */
+
+  --wf-shadow-card:        0 1px 4px rgba(0, 0, 0, 0.06);    // 卡片默认阴影
+  --wf-shadow-card-hover:  0 4px 16px rgba(0, 0, 0, 0.10);   // 卡片 hover（谨慎使用）
+  --wf-shadow-drawer:      -8px 0 32px rgba(0, 0, 0, 0.10);  // 右侧抽屉入场阴影
+  --wf-shadow-dialog:      0 8px 40px rgba(0, 0, 0, 0.14);   // 弹窗阴影
+  --wf-shadow-node-card:   0 8px 32px rgba(0, 0, 0, 0.14),
+                           0 2px 8px rgba(0, 0, 0, 0.08);    // 流程图悬浮节点卡
+
+
+  /* ================================================================
+     TYPOGRAPHY（企业后台适配，非 Apple 官网展示型字号）
+     ================================================================ */
+
+  --wf-font-2xs:           10px;   // 极小：法律信息 / 超密集 badge
+  --wf-font-xs:            11px;   // 极小：round badge / 会签角标
+  --wf-font-sm:            12px;   // 小：时间 / meta / hint / caption
+  --wf-font-base:          13px;   // 基础：表格单元格 / 列表正文
+  --wf-font-md:            14px;   // 中：节点名 / 标签 / 表头
+  --wf-font-lg:            15px;   // 较大：卡片标题 / drawer 标题
+  --wf-font-xl:            16px;   // 大：页面副标题
+  --wf-font-2xl:           20px;   // 特大：KPI 数字小屏
+  --wf-font-3xl:           28px;   // 标题数字（Banner KPI）
+
+  --wf-font-weight-normal:  400;
+  --wf-font-weight-medium:  500;
+  --wf-font-weight-semibold: 600;
+  --wf-font-weight-bold:    700;
+  --wf-font-weight-black:   800;
+
+  --wf-line-height-tight:  1.24;
+  --wf-line-height-base:   1.47;
+  --wf-line-height-loose:  1.6;
+
+
+  /* ================================================================
+     TRANSITION（统一过渡时长）
+     ================================================================ */
+
+  --wf-transition-fast:    0.10s ease;
+  --wf-transition-base:    0.15s ease;
+  --wf-transition-slow:    0.25s ease;
+
+
+  /* ================================================================
+     Z-INDEX（层叠顺序）
+     ================================================================ */
+
+  --wf-z-dropdown:         1000;
+  --wf-z-sticky:           1010;
+  --wf-z-drawer:           2000;
+  --wf-z-dialog:           2010;
+  --wf-z-tooltip:          3000;
+  --wf-z-node-card:        9999;   // FlowGraph 悬浮节点卡（fixed 定位）
+
+
+  /* ================================================================
+     ELEMENT PLUS 主题变量覆盖
+     在此统一覆盖 Element Plus CSS 变量，避免各组件用 :deep() 分散覆盖
+     ================================================================ */
+
+  --el-color-primary:                var(--wf-primary);
+  --el-color-primary-light-3:        var(--wf-primary-light);
+  --el-color-primary-light-5:        var(--wf-primary-light);
+  --el-color-primary-light-7:        var(--wf-primary-light);
+  --el-color-primary-light-8:        var(--wf-primary-light);
+  --el-color-primary-light-9:        var(--wf-primary-light);
+
+  --el-border-color:                 var(--wf-border);
+  --el-border-color-light:           var(--wf-divider);
+  --el-border-radius-base:           var(--wf-radius-sm);
+  --el-border-radius-small:          var(--wf-radius-sm);
+  --el-border-radius-round:          var(--wf-radius-pill);
+
+  --el-text-color-primary:           var(--wf-ink);
+  --el-text-color-regular:           var(--wf-ink-2);
+  --el-text-color-secondary:         var(--wf-ink-3);
+  --el-text-color-placeholder:       var(--wf-ink-3);
+  --el-text-color-disabled:          var(--wf-ink-disabled);
+
+  --el-fill-color:                   var(--wf-bg-section);
+  --el-fill-color-light:             var(--wf-bg);
+  --el-fill-color-blank:             var(--wf-canvas);
+
+  --el-bg-color:                     var(--wf-canvas);
+  --el-bg-color-page:                var(--wf-bg);
+  --el-bg-color-overlay:             var(--wf-canvas);
+
+  --el-disabled-bg-color:            var(--wf-bg-section);
+  --el-disabled-border-color:        var(--wf-divider);
+  --el-disabled-text-color:          var(--wf-ink-disabled);
+
+  --el-box-shadow:                   var(--wf-shadow-card);
+  --el-box-shadow-light:             var(--wf-shadow-card);
+
+  // Drawer
+  --el-drawer-bg-color:              var(--wf-canvas);
+  --el-drawer-box-shadow:            var(--wf-shadow-drawer);
+
+  // Dialog
+  --el-dialog-bg-color:              var(--wf-canvas);
+  --el-dialog-border-radius:         var(--wf-radius-xl);
+  --el-dialog-box-shadow:            var(--wf-shadow-dialog);
+
+  // Tag
+  --el-tag-border-radius:            var(--wf-radius-sm);
+
+  // Table
+  --el-table-header-bg-color:        var(--wf-bg-section);
+  --el-table-header-text-color:      var(--wf-ink-2);
+  --el-table-row-hover-bg-color:     var(--wf-primary-light);
+  --el-table-border-color:           var(--wf-divider);
+
+  // Pagination
+  --el-pagination-button-color:      var(--wf-ink-2);
+  --el-pagination-hover-color:       var(--wf-primary);
+
+  // Tabs
+  --el-tabs-header-height:           40px;
+}
+
+
+/* ================================================================
+   SCSS VARIABLES（供 SCSS mixin / function 使用）
+   注意：CSS 变量 (--wf-*) 是运行时变量，SCSS 变量 ($wf-*) 是编译时变量
+   两套并存：组件内用 CSS 变量，mixin 内用 SCSS 变量
+   ================================================================ */
+
+// Primary
+$wf-primary:            #0066cc;
+$wf-primary-hover:      #0071e3;
+$wf-primary-light:      #e8f0fb;
+$wf-primary-border:     #b3d0f0;
+
+// Ink
+$wf-ink:                #1d1d1f;
+$wf-ink-2:              #4e5969;
+$wf-ink-3:              #7a7a7a;
+$wf-ink-disabled:       #c0c4cc;
+
+// Surface
+$wf-canvas:             #ffffff;
+$wf-bg:                 #f5f5f7;
+$wf-bg-card:            #fafafa;
+$wf-bg-section:         #f7f8fa;
+
+// Border
+$wf-border:             #e0e0e0;
+$wf-divider:            #f0f0f0;
+
+// Status
+$wf-success:            #34c759;
+$wf-warning:            #f59e0b;
+$wf-danger:             #ef4444;
+$wf-neutral:            #d1d5db;
+
+// Radius
+$wf-radius-sm:          6px;
+$wf-radius-md:          10px;
+$wf-radius-lg:          14px;
+$wf-radius-xl:          18px;
+$wf-radius-pill:        100px;
+
+
+/* ================================================================
+   UTILITY MIXINS
+   ================================================================ */
+
+// 文字截断省略号
+@mixin wf-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// 弹性居中
+@mixin wf-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// 弹性垂直居中（横向不限）
+@mixin wf-flex-vcenter {
+  display: flex;
+  align-items: center;
+}
+
+// 卡片基础样式
+@mixin wf-card {
+  background: var(--wf-canvas);
+  border-radius: var(--wf-radius-lg);
+  box-shadow: var(--wf-shadow-card);
+}
+
+// 按钮激活态（统一 scale press 效果）
+@mixin wf-btn-press {
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+// 状态点（圆形指示器）
+@mixin wf-status-dot($size: 7px) {
+  display: inline-block;
+  width: $size;
+  height: $size;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+// 输入框焦点环（统一 focus 样式）
+@mixin wf-input-focus {
+  box-shadow: 0 0 0 2px var(--wf-primary) inset !important;
+  border-color: var(--wf-primary) !important;
+}
+
+
+/* ================================================================
+   GLOBAL RESET — 流程中心范围内的基础重置
+   仅作用于 .wf-app 根节点下，不污染全局
+   ================================================================ */
+
+.wf-app {
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC',
+               'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+  font-size: var(--wf-font-base);
+  color: var(--wf-ink);
+  background: var(--wf-bg);
+  line-height: var(--wf-line-height-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  // 统一滚动条样式
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--wf-border) transparent;
+
+    &::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: var(--wf-border);
+      border-radius: var(--wf-radius-pill);
+
+      &:hover {
+        background: var(--wf-ink-disabled);
+      }
+    }
+  }
+}
