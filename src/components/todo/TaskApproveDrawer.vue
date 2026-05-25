@@ -327,6 +327,7 @@ import {
   CircleCheck, CircleClose, Switch, View
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { useAdminInfo } from '/@/stores/adminInfo'
 import ContactSelector    from '/@/components/ContactSelector.vue'
 import MockApproveForm    from './MockApproveForm.vue'
 import SelectedUserBar    from './SelectedUserBar.vue'
@@ -335,8 +336,11 @@ import ApprovalHistory    from './ApprovalHistory.vue'
 import FlowGraph          from './Flowgraph.vue'
 import StatusTag          from '/@/workflow-shared/StatusTag.vue'
 import { formatDate }     from '/@/workflow-shared/workflowUtils.js'
-import { businessTypeMap, priorityMap, apiReassignTask } from './mockData.js'
+import { completeTask, reassignTask } from '/@/api/workflow/processApi'
+import { businessTypeMap, priorityMap } from '/@/components/todo/workflowConstants'
 import { resolveComponent } from '/@/router/componentRegistry.js'
+
+const adminInfo = useAdminInfo()
 
 const props = defineProps({
   modelValue:      { type: Boolean, default: false },
@@ -525,6 +529,14 @@ const handleApprove = async () => {
   try {
     const ok = await approveFormRef.value?.submitBusiness?.(flowPayload)
     if (ok === false) return
+    await completeTask({
+      businessId: props.taskInfo.businessId,
+      taskId: props.taskInfo.taskId,
+      action: 1,
+      comment: approveComment.value,
+      nextSlotSelections,
+      businessVariables: { ...flowVars.value },
+    })
     ElMessage.success('审批成功')
     emit('approved')
     drawerVisible.value = false
@@ -569,6 +581,14 @@ const handleReject = async () => {
   try {
     const ok = await approveFormRef.value?.submitBusiness?.(rejectPayload)
     if (ok === false) return
+    await completeTask({
+      businessId: props.taskInfo.businessId,
+      taskId: props.taskInfo.taskId,
+      action: 2,
+      rejectCode: rejectForm.value.rejectCode,
+      rejectReason: rejectForm.value.rejectReason,
+      comment: rejectForm.value.rejectReason,
+    })
     ElMessage.success('已驳回')
     rejectDialogVisible.value = false
     emit('rejected')
@@ -589,9 +609,11 @@ const handleReassignSubmit = async () => {
   if (!reassignTarget.value) return
   submitting.value = 'reassign'
   try {
-    await apiReassignTask({
+    await reassignTask({
       businessId:   props.taskInfo.businessId,
+      taskId:       props.taskInfo.taskId,
       newAssignees: [reassignTarget.value.workNo],
+      operatorId:   adminInfo.userid,
     })
     ElMessage.success(`已转派给 ${reassignTarget.value.name}`)
     reassignDialogVisible.value = false

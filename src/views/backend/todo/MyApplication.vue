@@ -10,7 +10,7 @@
         <div class="page-header-text">
           <h1 class="page-title">我的申请</h1>
           <p class="page-subtitle">
-            共 <span class="count-highlight">{{ appList.length }}</span> 条申请记录
+            共 <span class="count-highlight">{{ total }}</span> 条申请记录
           </p>
         </div>
       </div>
@@ -56,17 +56,18 @@
 
     <!-- ══ 表格 ══ -->
     <Commontable
-      :table-data="pagedList"
+      v-loading="loading"
+      :table-data="appList"
       :columns="tableColumns"
-      :total="filteredList.length"
-      :current-page="pagination.page"
-      :page-size="pagination.size"
+      :total="total"
+      :current-page="pagination.pageIndex"
+      :page-size="pagination.pageSize"
       :show-operation="true"
       :operation-width="160"
       storage-key="my-application-columns"
       row-key="processInstanceId"
-      @page-change="pagination.page = $event"
-      @size-change="pagination.size = $event"
+      @page-change="handlePageChange"
+      @size-change="handleSizeChange"
     >
       <!-- 申请标题列 -->
       <template #title="{ row }">
@@ -154,18 +155,20 @@ import Commontable          from "/@/components/claudetable/Commontable.vue"
 import ApplicationViewDrawer from "/@/components/todo/ApplicationViewDrawer.vue"
 import StatusTag from "/@/workflow-shared/StatusTag.vue"
 import {
-  businessTypeMap,
-  apiGetApplicationList,
-  apiGetFlowRender,
-  apiTerminateProcess,
-  apiGetApplicationDetail,
-} from "/@/components/todo/mockData.js"
+  getProcessList,
+  getFlowRender,
+  getProcessProgress,
+  terminateProcess,
+} from "/@/api/workflow/processApi"
+import { businessTypeMap } from "/@/components/todo/workflowConstants"
 
 // ── 状态 ──────────────────────────────────────
 const appList           = ref([])
+const total             = ref(0)
 const searchParams      = ref({})
-const pagination        = reactive({ page: 1, size: 20 })
+const pagination        = reactive({ pageIndex: 1, pageSize: 20 })
 const activeStatusFilter = ref("")
+const loading           = ref(false)
 
 // ── KPI 卡片 ──────────────────────────────────
 const kpiCards = computed(() => {
@@ -221,7 +224,8 @@ const headerStats = computed(() => {
 
 const toggleStatusFilter = (status) => {
   activeStatusFilter.value = activeStatusFilter.value === status ? "" : status
-  pagination.page = 1
+  pagination.pageIndex = 1
+  loadAppList()
 }
 
 // ── 搜索字段 ──────────────────────────────────
@@ -270,30 +274,48 @@ const tableColumns = [
   { prop: "completedTime", label: "完成时间", width: 170   },
 ]
 
-// ── 过滤 ──────────────────────────────────────
-const filteredList = computed(() => {
-  if (!activeStatusFilter.value) return appList.value
-  return appList.value.filter(a => a.status === activeStatusFilter.value)
-})
-
-const pagedList = computed(() => {
-  const s = (pagination.page - 1) * pagination.size
-  return filteredList.value.slice(s, s + pagination.size)
-})
-
-// ── 搜索 ──────────────────────────────────────
-const handleSearch = async (params) => {
-  searchParams.value = params
-  pagination.page = 1
-  const res = await apiGetApplicationList(params)
-  appList.value = res.items ?? []
+// ── 加载列表 ──────────────────────────────────
+async function loadAppList() {
+  loading.value = true
+  try {
+    const result = await getProcessList({
+      businessType: searchParams.value.businessType || undefined,
+      status: activeStatusFilter.value || searchParams.value.status || undefined,
+      pageIndex: pagination.pageIndex,
+      pageSize: pagination.pageSize,
+    })
+    appList.value = result.items ?? []
+    total.value = result.total ?? 0
+  } catch {
+    // processAxios 已统一提示
+  } finally {
+    loading.value = false
+  }
 }
 
-const handleReset = async () => {
+// ── 搜索 ──────────────────────────────────────
+const handleSearch = (params) => {
+  searchParams.value = params
+  pagination.pageIndex = 1
+  loadAppList()
+}
+
+const handleReset = () => {
   searchParams.value = {}
   activeStatusFilter.value = ""
-  const res = await apiGetApplicationList()
-  appList.value = res.items ?? []
+  pagination.pageIndex = 1
+  loadAppList()
+}
+
+const handlePageChange = (page) => {
+  pagination.pageIndex = page
+  loadAppList()
+}
+
+const handleSizeChange = (size) => {
+  pagination.pageSize = size
+  pagination.pageIndex = 1
+  loadAppList()
 }
 
 // ── 查看抽屉 ──────────────────────────────────
@@ -321,15 +343,36 @@ const openViewDrawer = async (row) => {
   nodesLoading.value = true
 
   const [flowRes, nodesRes] = await Promise.allSettled([
-    apiGetFlowRender(snapshot.businessId),
-    apiGetApplicationDetail(snapshot.businessId),
+    getFlowRender(snapshot.businessId),
+    getProcessProgress(snapshot.businessId),
   ])
 
   flowLoading.value = false
   if (flowRes.status === "fulfilled") currentFlowData.value = flowRes.value
 
   nodesLoading.value = false
-  if (nodesRes.status === "fulfilled") currentNodes.value = nodesRes.value?.nodes ?? []
+  if (nodesRes.status === "fulfilled") {
+    const progress = nodesRes.value
+    const historyNodes = (progress.auditHistory ?? []).map(r => ({
+      nodeKey:          r.taskDefinitionKey,
+      nodeName:         r.taskDefinitionKey,
+      nodeSemantic:     r.nodeSemantic,
+      operator:         r.operatorId,
+      completedAt:      r.operatedAt,
+      approveComment:   r.comment,
+      viewComponentPath: null,
+    }))
+    const activeNodes = (progress.currentNodes ?? []).map(n => ({
+      nodeKey:          n.nodeId,
+      nodeName:         n.nodeName,
+      nodeSemantic:     n.nodeSemantic,
+      operator:         n.assignee,
+      completedAt:      null,
+      approveComment:   null,
+      viewComponentPath: null,
+    }))
+    currentNodes.value = [...historyNodes, ...activeNodes]
+  }
 }
 
 // ── 撤回 ──────────────────────────────────────
@@ -345,24 +388,16 @@ const confirmWithdraw = (row) => {
     }
   )
     .then(async () => {
-      await apiTerminateProcess({ businessId: row.businessId, reason: "申请人主动撤回" })
+      await terminateProcess({ businessId: row.businessId, reason: "申请人主动撤回" })
       ElMessage.success("撤回成功")
-      const res = await apiGetApplicationList(searchParams.value)
-      appList.value = res.items ?? []
+      loadAppList()
     })
     .catch(() => {})
 }
 
 // ── 初始化 ────────────────────────────────────
-const loading = ref(false)
-onMounted(async () => {
-  loading.value = true
-  try {
-    const res = await apiGetApplicationList()
-    appList.value = res.items ?? []
-  } finally {
-    loading.value = false
-  }
+onMounted(() => {
+  loadAppList()
 })
 </script>
 

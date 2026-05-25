@@ -10,7 +10,7 @@
         <div class="page-header-text">
           <h1 class="page-title">我的待办</h1>
           <p class="page-subtitle">
-            共 <span class="count-highlight">{{ todoList.length }}</span> 条任务等待处理
+            共 <span class="count-highlight">{{ total }}</span> 条任务等待处理
           </p>
         </div>
       </div>
@@ -36,17 +36,18 @@
 
     <!-- ══ 表格 ══ -->
     <Commontable
-      :table-data="pagedList"
+      v-loading="loading"
+      :table-data="todoList"
       :columns="tableColumns"
-      :total="todoList.length"
-      :current-page="pagination.page"
-      :page-size="pagination.size"
+      :total="total"
+      :current-page="pagination.pageIndex"
+      :page-size="pagination.pageSize"
       :show-operation="true"
       :operation-width="140"
       storage-key="my-todo-columns"
       row-key="taskId"
-      @page-change="pagination.page = $event"
-      @size-change="pagination.size = $event"
+      @page-change="handlePageChange"
+      @size-change="handleSizeChange"
     >
       <!-- 任务名称列 -->
       <template #taskName="{ row }">
@@ -92,6 +93,7 @@
       :readonly="false"
       :task-info="currentTask"
       :flow-render-data="currentFlowData"
+      :flow-data-loading="flowDataLoading"
       :org-list="orgList"
       :user-list="userList"
       @approved="handleTaskDone"
@@ -104,15 +106,15 @@
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue'
 import { Bell, Edit } from '@element-plus/icons-vue'
-import { ElMessage, ElLoading } from 'element-plus'
+import { useAdminInfo } from '/@/stores/adminInfo'
 import Commonsearch from '/@/components/claudetable/Commonsearch.vue'
 import Commontable  from '/@/components/claudetable/Commontable.vue'
 import TaskApproveDrawer from '/@/components/todo/TaskApproveDrawer.vue'
-import {
-  mockOrgList, mockUserList,
-  businessTypeMap, priorityMap,
-  apiGetTodoList, apiGetFlowRender,
-} from '/@/components/todo/mockData.js'
+import { getPendingTasks, getFlowRender } from '/@/api/workflow/processApi'
+import { businessTypeMap, priorityMap } from '/@/components/todo/workflowConstants'
+import { mockOrgList, mockUserList } from '/@/components/todo/mockData.js'
+
+const adminInfo = useAdminInfo()
 
 // ── 静态数据 ──────────────────────────────────
 const orgList  = mockOrgList
@@ -120,8 +122,9 @@ const userList = mockUserList
 
 // ── 状态 ──────────────────────────────────────
 const todoList     = ref([])
+const total        = ref(0)
 const searchParams = ref({})
-const pagination   = reactive({ page: 1, size: 20 })
+const pagination   = reactive({ pageIndex: 1, pageSize: 20 })
 const loading      = ref(false)
 
 // ── 搜索字段配置 ──────────────────────────────
@@ -152,12 +155,6 @@ const tableColumns = [
   { prop: 'createTime',       label: '创建时间',  width: 170    },
 ]
 
-// ── 计算 ──────────────────────────────────────
-const pagedList = computed(() => {
-  const s = (pagination.page - 1) * pagination.size
-  return todoList.value.slice(s, s + pagination.size)
-})
-
 const headerStats = computed(() => {
   const list = todoList.value
   return [
@@ -175,92 +172,87 @@ const headerStats = computed(() => {
   ]
 })
 
-// ── 搜索 ──────────────────────────────────────
-const handleSearch = async (params) => {
-  searchParams.value = params
-  pagination.page = 1
+// ── 数据加载 ──────────────────────────────────
+async function loadTodoList() {
   loading.value = true
   try {
-    const res = await apiGetTodoList(params)
-    todoList.value = res.items ?? []
+    const result = await getPendingTasks({
+      employeeId: adminInfo.userid,
+      businessType: searchParams.value.businessType || undefined,
+      pageIndex: pagination.pageIndex,
+      pageSize: pagination.pageSize,
+    })
+    todoList.value = result.items ?? []
+    total.value = result.total ?? 0
+  } catch {
+    // processAxios 已统一提示
   } finally {
     loading.value = false
   }
 }
-const handleReset = async () => {
+
+// ── 搜索 ──────────────────────────────────────
+const handleSearch = (params) => {
+  searchParams.value = params
+  pagination.pageIndex = 1
+  loadTodoList()
+}
+const handleReset = () => {
   searchParams.value = {}
-  pagination.page = 1
-  loading.value = true
-  try {
-    const res = await apiGetTodoList()
-    todoList.value = res.items ?? []
-  } finally {
-    loading.value = false
-  }
+  pagination.pageIndex = 1
+  loadTodoList()
+}
+const handlePageChange = (page) => {
+  pagination.pageIndex = page
+  loadTodoList()
+}
+const handleSizeChange = (size) => {
+  pagination.pageSize = size
+  pagination.pageIndex = 1
+  loadTodoList()
 }
 
 // ── 打开审批抽屉 ──────────────────────────────
 const drawerVisible   = ref(false)
 const currentTask     = ref(null)
 const currentFlowData = ref(null)
+const flowDataLoading = ref(false)
 
 const openApproveDrawer = async (row) => {
-  const loadingInstance = ElLoading.service({
-    lock: true, text: '正在加载…', background: 'rgba(0,0,0,.45)',
-  })
+  currentFlowData.value = null
+  currentTask.value = {
+    taskId:        row.taskId,
+    taskName:      row.taskName,
+    businessId:    row.businessId,
+    businessType:  row.businessType,
+    nodeSemantic:  row.nodeSemantic,
+    pageCode:      row.pageCode,
+    priority:      row.priority,
+    createTime:    row.createTime,
+    requiredSlots: row.requiredSlots  ?? [],
+    canReject:     row.canReject      ?? false,
+    rejectOptions: row.rejectOptions  ?? [],
+  }
+  drawerVisible.value = true
+
+  flowDataLoading.value = true
   try {
-    currentFlowData.value = null
-
-    const [flowRes] = await Promise.allSettled([
-      apiGetFlowRender(row.businessId),
-    ])
-    currentFlowData.value = flowRes.status === 'fulfilled' ? flowRes.value : null
-
-    // 直接映射 PendingTaskDto 字段，不推断任何流程决策
-    currentTask.value = {
-      taskId:        row.taskId,
-      taskName:      row.taskName,
-      businessId:    row.businessId,
-      businessType:  row.businessType,
-      nodeSemantic:  row.nodeSemantic,
-      pageCode:      row.pageCode,
-      priority:      row.priority,
-      createTime:    row.createTime,
-      // 选人契约：Drawer 根据此列表渲染选人区（PATCH-04 消费）
-      requiredSlots: row.requiredSlots  ?? [],
-      // 驳回配置：Drawer 根据此控制驳回按钮与弹窗选项（PATCH-05 消费）
-      canReject:     row.canReject      ?? false,
-      rejectOptions: row.rejectOptions  ?? [],
-    }
-
-    drawerVisible.value = true
-  } catch (e) {
-    ElMessage.error('加载任务数据失败，请重试')
+    currentFlowData.value = await getFlowRender(row.businessId)
+  } catch {
+    // 流程图加载失败不影响审批操作
   } finally {
-    loadingInstance.close()
+    flowDataLoading.value = false
   }
 }
 
 // ── 任务完成回调 ──────────────────────────────
 const handleTaskDone = async () => {
-  loading.value = true
-  try {
-    const res = await apiGetTodoList(searchParams.value)
-    todoList.value = res.items ?? []
-  } finally {
-    loading.value = false
-  }
+  loadTodoList()
 }
 
 // ── 初始化 ────────────────────────────────────
-onMounted(async () => {
-  loading.value = true
-  try {
-    const res = await apiGetTodoList()
-    todoList.value = res.items ?? []
-  } finally {
-    loading.value = false
-  }
+onMounted(() => {
+  loadTodoList()
 })
 </script>
 
