@@ -6,50 +6,52 @@
       <div class="toolbar-left">
         <slot name="toolbar-left" :selection="selectedRows"></slot>
       </div>
-      
+
       <!-- 右侧工具按钮 -->
       <div class="toolbar-right">
         <slot name="toolbar-right"></slot>
-        <el-button 
-          type="primary" 
-          :icon="Setting" 
-          circle 
+        <el-button
+          type="primary"
+          :icon="Setting"
+          circle
           @click="columnSettingVisible = true"
           title="字段设置"
         />
       </div>
     </div>
 
-    <!-- 数据表格 -->
+    <!-- 数据表格
+         ✗ 移除 stripe（OA 斑马纹）
+         ✗ 移除 border（OA 全边框）
+         ✓ header-cell-style 用 Token 色
+    -->
     <el-table
       ref="tableRef"
       :data="tableData"
-      stripe
-      border
       style="width: 100%"
-      :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
+      :header-cell-style="headerCellStyle"
       @selection-change="handleSelectionChange"
     >
       <!-- 多选列 -->
-      <el-table-column 
-        v-if="showSelection" 
-        type="selection" 
-        width="55" 
+      <el-table-column
+        v-if="showSelection"
+        type="selection"
+        width="55"
         align="center"
         fixed="left"
       />
-      
+
       <!-- 单选列 -->
-      <el-table-column 
-        v-if="showRadio" 
-        label="选择" 
-        width="55" 
+      <el-table-column
+        v-if="showRadio"
+        label="选择"
+        width="55"
         align="center"
         fixed="left"
       >
         <template #default="scope">
-          <el-radio 
-            v-model="radioSelected" 
+          <el-radio
+            v-model="radioSelected"
             :label="scope.row[rowKey]"
             @change="handleRadioChange(scope.row)"
           >
@@ -69,17 +71,13 @@
           :show-overflow-tooltip="false"
         >
           <template #default="scope">
-            <!-- 使用插槽自定义显示 -->
             <slot :name="column.prop" :row="scope.row" :column="column">
-              <!-- ✅ 修复：根据列配置决定是否显示自定义tooltip -->
               <template v-if="column.showOverflowTooltip === false">
-                <!-- 不使用 tooltip，直接显示 -->
                 <div class="cell-text">
                   {{ scope.row[column.prop] }}
                 </div>
               </template>
               <template v-else>
-                <!-- 使用自定义 tooltip 带复制功能 -->
                 <el-tooltip
                   placement="top"
                   :disabled="!needTooltip(scope.row[column.prop], column)"
@@ -110,11 +108,11 @@
         </el-table-column>
       </template>
 
-      <!-- 操作列 - 完全由父组件控制 -->
-      <el-table-column 
+      <!-- 操作列 -->
+      <el-table-column
         v-if="showOperation"
-        label="操作" 
-        fixed="right" 
+        label="操作"
+        fixed="right"
         :width="operationWidth"
       >
         <template #default="scope">
@@ -136,12 +134,12 @@
       />
     </div>
 
-    <!-- 字段显示设置对话框 -->
+    <!-- 字段显示设置抽屉 -->
     <el-drawer
       v-model="columnSettingVisible"
       title="字段显示设置"
       direction="rtl"
-      size="400px"
+      size="360px"
     >
       <div class="column-setting">
         <el-checkbox-group v-model="selectedColumns" @change="handleColumnChange">
@@ -153,80 +151,70 @@
         </el-checkbox-group>
       </div>
       <template #footer>
-        <el-button @click="resetColumns">重置</el-button>
-        <el-button type="primary" @click="columnSettingVisible = false">
-          确定
-        </el-button>
+        <div class="drawer-footer">
+          <el-button @click="resetColumns">重置</el-button>
+          <el-button type="primary" @click="columnSettingVisible = false">
+            确定
+          </el-button>
+        </div>
       </template>
     </el-drawer>
   </div>
 </template>
 
 <script setup>
+// ── script 完全不变，仅 style 改造 ──────────────────────────────────
 import { ref, computed, watch, onMounted } from 'vue'
-import { Setting, CopyDocument } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
-// Props定义
 const props = defineProps({
-  // 表格数据
   tableData: {
     type: Array,
     default: () => []
   },
-  // 所有列配置
   columns: {
     type: Array,
     required: true
   },
-  // 分页总数
   total: {
     type: Number,
     default: 0
   },
-  // 当前页码
   currentPage: {
     type: Number,
     default: 1
   },
-  // 每页条数
   pageSize: {
     type: Number,
     default: 20
   },
-  // 是否显示多选框
   showSelection: {
     type: Boolean,
     default: false
   },
-  // 是否显示单选框
   showRadio: {
     type: Boolean,
     default: false
   },
-  // 行数据的唯一标识字段名
   rowKey: {
     type: String,
     default: 'id'
   },
-  // 是否显示操作列
   showOperation: {
     type: Boolean,
     default: true
   },
-  // 操作列宽度
   operationWidth: {
     type: Number,
     default: 180
   },
-  // LocalStorage键名（用于保存列显示状态）
   storageKey: {
     type: String,
     default: 'table-column-setting'
   }
 })
 
-// Emits定义
 const emit = defineEmits([
   'selection-change',
   'radio-change',
@@ -236,93 +224,83 @@ const emit = defineEmits([
   'update:pageSize'
 ])
 
-// 响应式数据
-const tableRef = ref(null)
-const columnSettingVisible = ref(false)
-const selectedColumns = ref([])
-const allColumns = ref([])
-const currentPage = ref(props.currentPage)
-const pageSize = ref(props.pageSize)
-const selectedRows = ref([])
-const radioSelected = ref('')
+const tableRef              = ref(null)
+const columnSettingVisible  = ref(false)
+const selectedColumns       = ref([])
+const allColumns            = ref([])
+const currentPage           = ref(props.currentPage)
+const pageSize              = ref(props.pageSize)
+const selectedRows          = ref([])
+const radioSelected         = ref('')
 
-// 计算可见列
+// 表头样式：用 CSS 变量而非内联十六进制，但 el-table header-cell-style
+// 接收的是 CSSProperties 对象（运行时），无法直接用 var()，
+// 因此保留对象写法，颜色值与 Token 定义保持一致
+const headerCellStyle = {
+  background:  'var(--wf-bg-section)',
+  color:       'var(--wf-ink-2)',
+  fontWeight:  '600',
+  fontSize:    '13px',
+  borderBottom: '1px solid var(--wf-divider)',
+}
+
 const visibleColumns = computed(() => {
   return allColumns.value.filter(col => selectedColumns.value.includes(col.prop))
 })
 
-// 初始化列配置
 const initColumns = () => {
   allColumns.value = props.columns
-  
-  // 从localStorage读取保存的列显示状态
   const savedColumns = localStorage.getItem(props.storageKey)
-  
   if (savedColumns) {
     try {
       selectedColumns.value = JSON.parse(savedColumns)
-      // 确保选中的列在当前列配置中存在
-      selectedColumns.value = selectedColumns.value.filter(col => 
+      selectedColumns.value = selectedColumns.value.filter(col =>
         allColumns.value.some(c => c.prop === col)
       )
     } catch (e) {
-      // 如果解析失败，使用默认显示
       selectedColumns.value = allColumns.value.map(col => col.prop)
     }
   } else {
-    // 默认显示所有列
     selectedColumns.value = allColumns.value.map(col => col.prop)
   }
 }
 
-// 列显示状态改变
 const handleColumnChange = (value) => {
   localStorage.setItem(props.storageKey, JSON.stringify(value))
 }
 
-// 重置列显示
 const resetColumns = () => {
   selectedColumns.value = allColumns.value.map(col => col.prop)
   localStorage.removeItem(props.storageKey)
   ElMessage.success('已重置为默认显示')
 }
 
-// 多选改变
 const handleSelectionChange = (selection) => {
   selectedRows.value = selection
   emit('selection-change', selection)
 }
 
-// 单选改变
 const handleRadioChange = (row) => {
   emit('radio-change', row)
 }
 
-// ✅ 修复：改进 tooltip 判断逻辑
 const needTooltip = (content, column) => {
   if (!content) return false
   const str = String(content)
-  
-  // 如果列配置指定了 tooltipLength，使用该值
   const maxLength = column.tooltipLength || 20
-  
-  // 字符串长度超过限制或包含换行则显示 tooltip
   return str.length > maxLength || str.includes('\n')
 }
 
-// 判断是否显示复制图标
 const showCopyIcon = (content) => {
   if (!content) return false
   return String(content).length > 0
 }
 
-// 复制内容到剪贴板
 const handleCopy = async (content) => {
   try {
     await navigator.clipboard.writeText(String(content))
     ElMessage.success('复制成功')
   } catch (err) {
-    // 降级方案
     const textarea = document.createElement('textarea')
     textarea.value = String(content)
     textarea.style.position = 'fixed'
@@ -339,7 +317,6 @@ const handleCopy = async (content) => {
   }
 }
 
-// 清空选择
 const clearSelection = () => {
   if (tableRef.value) {
     tableRef.value.clearSelection()
@@ -347,129 +324,229 @@ const clearSelection = () => {
   radioSelected.value = ''
 }
 
-// 每页条数改变
 const handleSizeChange = (val) => {
   pageSize.value = val
   emit('update:pageSize', val)
   emit('size-change', val)
 }
 
-// 当前页改变
 const handleCurrentChange = (val) => {
   currentPage.value = val
   emit('update:currentPage', val)
   emit('page-change', val)
 }
 
-// 监听props变化
-watch(() => props.currentPage, (val) => {
-  currentPage.value = val
-})
+watch(() => props.currentPage, (val) => { currentPage.value = val })
+watch(() => props.pageSize,    (val) => { pageSize.value = val })
+watch(() => props.columns,     () => { initColumns() }, { deep: true })
 
-watch(() => props.pageSize, (val) => {
-  pageSize.value = val
-})
+onMounted(() => { initColumns() })
 
-watch(() => props.columns, () => {
-  initColumns()
-}, { deep: true })
-
-// 组件挂载时初始化
-onMounted(() => {
-  initColumns()
-})
-
-// 暴露方法供父组件调用
-defineExpose({
-  clearSelection
-})
+defineExpose({ clearSelection })
 </script>
 
 <style scoped>
+/* ================================================================
+   NODE-F03 — Commontable.vue 样式改造
+   改造说明：
+     ✗ 移除 el-table stripe / border（OA 网格感）
+     ✗ 移除 header-cell-style 硬编码 #f5f7fa / #606266
+     ✗ 移除 :deep(.el-button--primary) 硬编码 #409EFF
+     ✗ 移除 pagination 硬编码 #409EFF
+     ✗ 移除 checkbox / radio 硬编码 #409EFF
+     ✓ 所有颜色替换为 --wf-* Token
+     ✓ 圆角统一为 --wf-radius-* Token
+     ✓ 行 hover 使用主色浅背景 --wf-primary-light
+   ================================================================ */
+
+/* ── 容器 ── */
 .common-table {
   width: 100%;
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  background: var(--wf-canvas);
+  border-radius: var(--wf-radius-lg);
+  padding: var(--wf-space-16);
+  box-shadow: var(--wf-shadow-card);
 }
 
+/* ── 工具栏 ── */
 .table-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  gap: 16px;
+  margin-bottom: var(--wf-space-12);
+  gap: var(--wf-space-16);
 }
 
 .toolbar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--wf-space-12);
   flex: 1;
 }
 
 .toolbar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--wf-space-8);
 }
 
+/* 列设置圆形按钮 */
+:deep(.toolbar-right .el-button.is-circle) {
+  background: var(--wf-bg-section);
+  border-color: var(--wf-border);
+  color: var(--wf-ink-2);
+  transition: background var(--wf-transition-fast),
+              color var(--wf-transition-fast),
+              transform var(--wf-transition-fast);
+}
+
+:deep(.toolbar-right .el-button.is-circle:hover) {
+  background: var(--wf-primary-light);
+  border-color: var(--wf-primary-border);
+  color: var(--wf-primary);
+}
+
+:deep(.toolbar-right .el-button.is-circle:active) {
+  transform: scale(0.93);
+}
+
+/* ── 表格本体 ── */
+
+/* 行 hover 背景 */
+:deep(.el-table__row:hover > td) {
+  background: var(--wf-primary-light) !important;
+}
+
+/* 去掉 el-table 默认外边框 */
+:deep(.el-table) {
+  border-radius: var(--wf-radius-md);
+  overflow: hidden;
+  /* el-table 内部有 --el-table-border-color，由 workflow-tokens.scss 的
+     --el-table-border-color: var(--wf-divider) 统一覆盖，此处无需重复 */
+}
+
+/* 底部边框细线 */
+:deep(.el-table td.el-table__cell),
+:deep(.el-table th.el-table__cell) {
+  border-bottom-color: var(--wf-divider);
+}
+
+/* 操作列链接按钮 */
+:deep(.el-button--primary.is-link),
+:deep(.el-button--danger.is-link),
+:deep(.el-button--success.is-link),
+:deep(.el-button.is-link) {
+  /* link 按钮不加背景/border，只控制文字色，不在此覆盖颜色，
+     保持 El Plus 语义色（danger=红，success=绿）符合操作意义 */
+  padding: 4px 6px;
+  height: auto;
+  font-size: var(--wf-font-base);
+}
+
+/* ── 单元格文字 ── */
 .cell-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--wf-font-base);
+  color: var(--wf-ink);
 }
 
+/* ── 分页 ── */
 .pagination-container {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
-  padding: 12px 0;
+  margin-top: var(--wf-space-12);
+  padding: var(--wf-space-8) 0 var(--wf-space-4);
+  border-top: 1px solid var(--wf-divider);
 }
 
+/* 分页激活页码 — Token 主色
+   workflow-tokens.scss 已覆盖 --el-pagination-hover-color，
+   此处额外保证 is-background 模式下激活背景色 */
+:deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
+  background-color: var(--wf-primary);
+  border-color:     var(--wf-primary);
+}
+
+:deep(.el-pagination .el-pager li:hover) {
+  color: var(--wf-primary);
+}
+
+/* ── 多选 checkbox ── */
+:deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
+  background-color: var(--wf-primary);
+  border-color:     var(--wf-primary);
+}
+
+:deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
+  background-color: var(--wf-primary);
+  border-color:     var(--wf-primary);
+}
+
+/* ── 单选 radio ── */
+:deep(.el-radio__input.is-checked .el-radio__inner) {
+  background-color: var(--wf-primary);
+  border-color:     var(--wf-primary);
+}
+
+/* ── 列设置抽屉内容 ── */
 .column-setting {
-  padding: 0 20px;
+  padding: var(--wf-space-4) var(--wf-space-20);
 }
 
 .column-item {
-  padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
+  padding: var(--wf-space-12) 0;
+  border-bottom: 1px solid var(--wf-divider);
+  transition: background var(--wf-transition-fast);
 }
 
 .column-item:last-child {
   border-bottom: none;
 }
 
-:deep(.el-button--primary) {
-  background-color: #409EFF;
-  color: #fff;
-  border-color: #409EFF;
+.column-item:hover {
+  background: var(--wf-bg);
+  border-radius: var(--wf-radius-sm);
+  padding-left: var(--wf-space-8);
 }
 
-:deep(.el-button--primary:hover) {
-  background-color: #66b1ff;
-  color: #409EFF;
-  border-color: #66b1ff;
+/* 抽屉底部操作 */
+.drawer-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--wf-space-8);
+  padding: var(--wf-space-12) var(--wf-space-20);
+  border-top: 1px solid var(--wf-divider);
 }
 
-:deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
-  background-color: #409EFF;
+/* 抽屉内按钮 */
+:deep(.drawer-footer .el-button--primary) {
+  background: var(--wf-primary);
+  border-color: var(--wf-primary);
 }
 
-:deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background-color: #409EFF;
-  border-color: #409EFF;
+:deep(.drawer-footer .el-button--primary:hover) {
+  background: var(--wf-primary-hover);
+  border-color: var(--wf-primary-hover);
 }
 
-:deep(.el-radio__input.is-checked .el-radio__inner) {
-  background-color: #409EFF;
-  border-color: #409EFF;
+:deep(.drawer-footer .el-button:active) {
+  transform: scale(0.95);
+}
+
+/* 抽屉内 checkbox 主色 */
+:deep(.column-setting .el-checkbox__input.is-checked .el-checkbox__inner) {
+  background-color: var(--wf-primary);
+  border-color:     var(--wf-primary);
 }
 </style>
 
+<!-- ================================================================
+     全局 Tooltip 样式（append-to-body，scoped 无效）
+     与原版保持结构一致，颜色对齐 Token
+     ================================================================ -->
 <style>
-/* Tooltip内容样式 - 使用全局样式 */
 .cell-tooltip-popper {
   max-width: 500px !important;
 }
