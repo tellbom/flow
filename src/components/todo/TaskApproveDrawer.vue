@@ -182,9 +182,7 @@
               <span class="fmb-sep"></span>
               <span class="fmb-item">
                 <span class="fmb-label">流程状态</span>
-                <el-tag :type="statusTagType(flowRenderData.status)" size="small" round>
-                  {{ statusLabel(flowRenderData.status) }}
-                </el-tag>
+                <StatusTag :status="flowRenderData.status" :show-dot="false" />
               </span>
             </div>
 
@@ -334,7 +332,9 @@ import MockApproveForm    from './MockApproveForm.vue'
 import SelectedUserBar    from './SelectedUserBar.vue'
 import DefaultAssigneeBar from './Defaultassigneebar.vue'
 import ApprovalHistory    from './ApprovalHistory.vue'
-import FlowGraph          from './FlowGraph.vue'
+import FlowGraph          from './Flowgraph.vue'
+import StatusTag          from '/@/workflow-shared/StatusTag.vue'
+import { formatDate }     from '/@/workflow-shared/workflowUtils.js'
 import { businessTypeMap, priorityMap, apiReassignTask } from './mockData.js'
 import { resolveComponent } from '/@/router/componentRegistry.js'
 
@@ -617,14 +617,6 @@ const handleClose = (done) => {
   done()
 }
 
-const formatDate = (dt) => {
-  if (!dt) return '-'
-  return new Date(dt).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
-}
-const statusTagType = (s) =>
-  ({ running: 'primary', completed: 'success', terminated: 'info', rejected: 'danger' }[s] || '')
-const statusLabel = (s) =>
-  ({ running: '审批中', completed: '已完成', terminated: '已撤回', rejected: '已驳回' }[s] || s)
 </script>
 
 <style>

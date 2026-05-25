@@ -8,7 +8,7 @@
       <el-timeline-item
         v-for="r in records"
         :key="r.taskId"
-        :type="outcomeType(r.outcome)"
+        :type="outcomeTagType(r.outcome)"
         :timestamp="formatDate(r.endTime)"
         placement="top"
         size="large"
@@ -16,7 +16,7 @@
         <div class="record-card">
           <div class="record-top">
             <span class="record-node">{{ r.nodeName }}</span>
-            <el-tag :type="outcomeType(r.outcome)" size="small" round>
+            <el-tag :type="outcomeTagType(r.outcome)" size="small" round>
               {{ outcomeLabel(r.outcome) }}
             </el-tag>
             <el-tag v-if="r.round > 1" type="warning" size="small" round>
@@ -39,19 +39,14 @@
 
 <script setup>
 import { User, Timer, Warning } from '@element-plus/icons-vue'
+import {
+  outcomeTagType,
+  outcomeLabel,
+  formatDate,
+  formatDuration,
+} from '/@/workflow-shared/workflowUtils.js'
 
 defineProps({ records: { type: Array, default: () => [] } })
-
-const outcomeType  = (o) => ({ approved: 'success', rejected_terminate: 'danger', rejected_return: 'warning' }[o] || 'info')
-const outcomeLabel = (o) => ({ approved: '已通过', rejected_terminate: '已驳回终止', rejected_return: '已驳回回退' }[o] || o)
-const formatDate   = (dt) => dt ? new Date(dt).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-') : '-'
-const formatDuration = (s) => {
-  if (!s) return '-'
-  if (s < 60)    return `${s}秒`
-  if (s < 3600)  return `${Math.floor(s / 60)}分钟`
-  if (s < 86400) return `${Math.floor(s / 3600)}小时`
-  return `${Math.floor(s / 86400)}天`
-}
 </script>
 
 <style scoped>

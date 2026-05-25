@@ -24,14 +24,11 @@
             </div>
           </div>
         </div>
-        <el-tag
-          :type="statusTagType(appInfo?.status)"
-          size="large" round effect="plain"
+        <StatusTag
+          :status="appInfo?.status"
+          size="large"
           class="avd-status-tag"
-        >
-          <span class="avd-status-dot" :class="`dot-${appInfo?.status}`" />
-          {{ statusLabel(appInfo?.status) }}
-        </el-tag>
+        />
       </div>
     </template>
 
@@ -153,7 +150,8 @@ import {
   Document, Share, List, Loading, Tickets,
   User, Clock, ChatDotRound,
 } from '@element-plus/icons-vue'
-import FlowGraph from './FlowGraph.vue'
+import FlowGraph from './Flowgraph.vue'
+import StatusTag from '/@/workflow-shared/StatusTag.vue'
 import { resolveComponent } from '/@/router/componentRegistry.js'
 
 // ─────────────────────────────────────────────────
@@ -261,11 +259,6 @@ watch(
   { immediate: true, deep: true }
 )
 
-// ─────────────────────────────────────────────────
-//  状态工具
-// ─────────────────────────────────────────────────
-const statusTagType = s => ({ running: 'primary', completed: 'success', terminated: 'info' }[s] ?? '')
-const statusLabel   = s => ({ running: '审批中', completed: '已完成', terminated: '已撤回' }[s] ?? s)
 </script>
 
 <style>
@@ -346,7 +339,6 @@ const statusLabel   = s => ({ running: '审批中', completed: '已完成', term
 .avd-sep        { color: var(--wf-border); }
 .avd-status-tag { flex-shrink: 0; }
 
-.avd-status-dot,
 .tab-dot {
   display: inline-block;
   width: 6px;
@@ -356,10 +348,7 @@ const statusLabel   = s => ({ running: '审批中', completed: '已完成', term
   vertical-align: middle;
 }
 
-.dot-running   { background: var(--wf-status-running); }
-.dot-completed,
 .dot-done      { background: var(--wf-success); }
-.dot-terminated,
 .dot-pending   { background: var(--wf-neutral); }
 
 /* ── Body ── */

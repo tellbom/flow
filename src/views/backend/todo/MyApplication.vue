@@ -88,12 +88,7 @@
 
       <!-- 流程状态列 -->
       <template #status="{ row }">
-        <div class="status-cell">
-          <span class="status-dot" :class="`s-${row.status}`"></span>
-          <el-tag :type="statusTagType(row.status)" size="small" round>
-            {{ statusLabel(row.status) }}
-          </el-tag>
-        </div>
+        <StatusTag :status="row.status" />
       </template>
 
       <!-- 当前节点列 -->
@@ -157,6 +152,7 @@ import { ElMessage, ElMessageBox } from "element-plus"
 import Commonsearch         from "/@/components/claudetable/Commonsearch.vue"
 import Commontable          from "/@/components/claudetable/Commontable.vue"
 import ApplicationViewDrawer from "/@/components/todo/ApplicationViewDrawer.vue"
+import StatusTag from "/@/workflow-shared/StatusTag.vue"
 import {
   businessTypeMap,
   apiGetApplicationList,
@@ -357,12 +353,6 @@ const confirmWithdraw = (row) => {
     .catch(() => {})
 }
 
-// ── 工具 ──────────────────────────────────────
-const statusTagType = (s) =>
-  ({ running: "primary", completed: "success", terminated: "info" }[s] || "")
-const statusLabel = (s) =>
-  ({ running: "审批中", completed: "已完成", terminated: "已撤回" }[s] || s)
-
 // ── 初始化 ────────────────────────────────────
 const loading = ref(false)
 onMounted(async () => {
@@ -552,32 +542,6 @@ onMounted(async () => {
 .app-sub {
   font-size: var(--wf-font-sm);
   color: var(--wf-ink-3);
-}
-
-.status-cell {
-  display: flex;
-  align-items: center;
-  gap: var(--wf-space-6);
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.s-running {
-  background: var(--wf-status-running);
-  animation: pulse 1.8s infinite;
-}
-
-.s-completed  { background: var(--wf-success);  }
-.s-terminated { background: var(--wf-neutral);  }
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
 }
 
 .text-muted {
