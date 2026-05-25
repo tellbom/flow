@@ -71,7 +71,7 @@ const handleLockClick = (event: MouseEvent) => {
 <style scoped lang="scss">
 .footer-copyright {
     width: 100%;
-    background: rgba(161,31,31,0.92);
+    background: #0066cc;
     padding: 24px 20px;
 }
 

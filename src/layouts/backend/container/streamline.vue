@@ -15,14 +15,11 @@
         <Main />
       </div>
     </el-container>
-  </el-container>
+  </el-container>·
 
   <!-- 版权声明 -->
   <FooterCopyright
     company-name="数字化集团有限责任公司"
-    admin-url="/admin/login"
-    :lockUrl="adminBaseRoutePath + '/superviseleadfeedback/index'"
-    :show-admin-link="true"
   />
   <CloseFullScreen v-if="navTabs.state.tabFullScreen" />
 </template>
@@ -49,8 +46,17 @@ const handleLockClick = (e: any) => {
 <style scoped>
 /* 整体容器 */
 .layout-container {
+  --streamline-primary: #0066cc;
+  --streamline-primary-focus: #0071e3;
+  --streamline-ink: #1d1d1f;
+  --streamline-muted: #7a7a7a;
+  --streamline-canvas: #ffffff;
+  --streamline-parchment: #f5f5f7;
+  --streamline-hairline: #e0e0e0;
   width: 100%;
   min-height: 100vh;
+  color: var(--streamline-ink);
+  background-color: var(--streamline-canvas);
 }
 
 /* 主内容包裹器 - 背景图跟随滚动，但尺寸固定 */
@@ -61,11 +67,11 @@ const handleLockClick = (e: any) => {
   width: 100%;
   min-height: 100vh;
   /* 背景大图 - 跟随滚动，尺寸固定 */
-  background: url("/@/assets/images/djy_banner.png") center top / 100% auto no-repeat,
-              url("/@/assets/images/djy_banner_bottom.png") center bottom / 100% auto no-repeat;
+  background: url("/@/assets/images/process_backend.png") center top / 100% auto no-repeat
+              var(--streamline-parchment);
   background-attachment: scroll; /* 🔥 跟随滚动 */
   background-size: 100% auto; /* 🔥 固定宽度100%，高度自动 */
-  padding-top: 15%;
+  padding-top: 20%;
 }
 
 /* Header 区域 */
@@ -83,9 +89,9 @@ const handleLockClick = (e: any) => {
   max-width: 2000px;
   margin: 8px auto 40px;
   padding: 24px;
-  background: #ffffff;
+  background: var(--streamline-canvas);
+  border: 1px solid var(--streamline-hairline);
   border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   position: relative;
   z-index: 20;
 }

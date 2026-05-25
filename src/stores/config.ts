@@ -9,7 +9,7 @@ export const useConfig = defineStore(
         const layout: Layout = reactive({
             showDrawer: false,
             shrink: false,
-            layoutMode: 'Classic',
+            layoutMode: 'Streamline',
             mainAnimation: 'slide-right',
             isDark: false,
 

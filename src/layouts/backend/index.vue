@@ -113,7 +113,6 @@ const onAdaptiveLayout = () => {
       config.setLayout("menuCollapse", true);
     }
     config.setLayout("shrink", true);
-    config.setLayoutMode("Classic");
   } else {
     state.autoMenuCollapseLock = false;
     let beforeResizeLayoutTemp =
@@ -121,7 +120,6 @@ const onAdaptiveLayout = () => {
 
     config.setLayout("menuCollapse", beforeResizeLayoutTemp.menuCollapse);
     config.setLayout("shrink", false);
-    config.setLayoutMode(beforeResizeLayoutTemp.layoutMode);
   }
 };
 </script>

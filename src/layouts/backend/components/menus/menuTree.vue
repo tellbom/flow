@@ -127,32 +127,32 @@ const onClickSubMenu = (menu: RouteRecordRaw) => {
 
     &.el-menu--popup {
         .el-menu-item {
-            color: rgba(255, 255, 255, 0.68) !important;
+            color: #1d1d1f !important;
             background-color: transparent !important;
             transition: all 0.15s;
 
             &:hover {
-                background-color: rgba(255, 255, 255, 0.07) !important;
-                color: rgba(255, 255, 255, 0.92) !important;
+                background-color: #f5f5f7 !important;
+                color: #0066cc !important;
             }
 
             &.is-active {
-                background-color: #0066cc !important;
-                color: #ffffff !important;
+                background-color: rgba(0, 102, 204, 0.10) !important;
+                color: #0066cc !important;
             }
 
             &.is-active:hover {
-                background-color: #0071e3 !important;
-                color: #ffffff !important;
+                background-color: rgba(0, 102, 204, 0.14) !important;
+                color: #0066cc !important;
             }
         }
     }
 }
 
 .ba-menu-popup.el-popper {
-    border: 1px solid #e5e7eb !important;
+    border: 1px solid #e0e0e0 !important;
     border-radius: 8px !important;
-    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12) !important;
+    box-shadow: none !important;
 
     .el-menu {
         min-width: 180px;
@@ -175,13 +175,13 @@ const onClickSubMenu = (menu: RouteRecordRaw) => {
 
     .el-menu-item:hover,
     .el-sub-menu__title:hover {
-        background-color: #f5f7fb !important;
+        background-color: #f5f5f7 !important;
         color: #0066cc !important;
     }
 
     .el-menu-item.is-active,
     .el-sub-menu.is-active > .el-sub-menu__title {
-        background-color: #e8f1ff !important;
+        background-color: rgba(0, 102, 204, 0.10) !important;
         color: #0066cc !important;
         font-weight: 600;
     }

@@ -3,10 +3,10 @@
         <!-- 左侧：Logo + 系统名称 -->
         <div class="top-bar-left">
             <div class="system-logo">
-                <img src="/@/assets/logo.ico" alt="logo" />
+                <img src="/@/assets/images/process_icon.png" alt="logo" />
             </div>
             <div class="system-info">
-                <h1 class="system-name">巡视巡察管理系统</h1>
+                <h1 class="system-name">业务流程运行管理平台</h1>
                 <!-- <span class="system-subtitle">巡察监督管理系统</span> -->
             </div>
         </div>
@@ -39,7 +39,7 @@
                     </div>
                     <div class="admin-info-actions">
                         <el-button @click="onAdminInfo" type="primary" plain>个人资料</el-button>
-                        <el-button @click="onLogout" type="danger" plain>退出登录</el-button>
+                        <el-button @click="onLogout" plain>退出登录</el-button>
                     </div>
                 </div>
             </el-popover>
@@ -85,23 +85,26 @@ const onLogout = () => {
 
 <style scoped lang="scss">
 .system-top-bar {
+    --streamline-primary: #0066cc;
+    --streamline-ink: #fff;
+    --streamline-muted: #7a7a7a;
+    --streamline-parchment: #f5f5f7;
+    --streamline-hairline: #e0e0e0;
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     height: 48px; /* Apple 风格高度 */
     /* 顶部导航 */
-    background: rgba(110, 20, 20, 0.72);
-    backdrop-filter: blur(20px) saturate(150%);
+    background: #0066cc;
     backdrop-filter: blur(20px) saturate(180%); /* 毛玻璃效果 */
     -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--streamline-hairline);
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 20px;
     z-index: 1000;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 /* 左侧区域 */
@@ -132,7 +135,7 @@ const onLogout = () => {
 .system-name {
     font-size: 23px;
     font-weight: 600;
-    color: #fff;
+    color: var(--streamline-ink);
     margin: 0;
     letter-spacing: -0.022em; /* Apple 字距 */
 }
@@ -140,7 +143,7 @@ const onLogout = () => {
 .system-subtitle {
     font-size: 13px;
     font-weight: 400;
-    color: #fff;
+    color: var(--streamline-muted);
 }
 
 /* 右侧区域 */
@@ -160,14 +163,14 @@ const onLogout = () => {
     
     &:hover,
     &.hover {
-        background-color: rgba(0, 0, 0, 0.05);
+        background-color: rgba(0, 102, 204, 0.08);
     }
 }
 
 .admin-name {
     font-size: 14px;
-    font-weight: 500;
-    color: #fff;
+    font-weight: 400;
+    color: var(--streamline-ink);
 }
 
 /* Popover 内容样式 */
@@ -186,20 +189,20 @@ const onLogout = () => {
 .admin-name-large {
     font-size: 17px;
     font-weight: 600;
-    color: #1d1d1f;
+    color: var(--streamline-ink);
     margin-bottom: 4px;
 }
 
 .admin-lasttime {
     font-size: 13px;
-    color: #86868b;
+    color: var(--streamline-muted);
 }
 
 .admin-info-actions {
     display: flex;
     gap: 10px;
     padding: 16px 0 0;
-    border-top: 0.5px solid rgba(0, 0, 0, 0.1);
+    border-top: 1px solid var(--streamline-hairline);
     justify-content: center;
 }
 </style>
@@ -207,8 +210,9 @@ const onLogout = () => {
 <style lang="scss">
 /* 全局 Popover 样式 */
 .admin-info-popover.el-popover {
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-    border: 0.5px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    box-shadow: none;
+    border: 1px solid #e0e0e0;
+    background: #ffffff;
 }
 </style>

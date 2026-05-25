@@ -59,14 +59,20 @@ onBeforeRouteUpdate((to) => {
 
 <style scoped lang="scss">
 .layouts-menu-horizontal {
+    --streamline-primary: #0066cc;
+    --streamline-primary-focus: #0071e3;
+    --streamline-ink: #1d1d1f;
+    --streamline-muted: #7a7a7a;
+    --streamline-canvas: #ffffff;
+    --streamline-parchment: #f5f5f7;
+    --streamline-hairline: #e0e0e0;
     display: flex;
     align-items: center;
     width: 100%;
     height: 56px;
-   background: rgba(120, 20, 20, 0.75);
-    backdrop-filter: blur(20px) saturate(140%);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid var(--streamline-hairline);
     box-sizing: border-box;
 }
 
@@ -84,12 +90,12 @@ onBeforeRouteUpdate((to) => {
 
     /* 滚动条滑块：低透明度白，hover 时略亮 */
     :deep(.el-scrollbar__thumb) {
-        background-color: rgba(255, 255, 255, 0.25);
+        background-color: rgba(0, 102, 204, 0.28);
         border-radius: 0;
         transition: background-color 0.2s;
 
         &:hover {
-            background-color: rgba(255, 255, 255, 0.45);
+            background-color: var(--streamline-primary);
         }
     }
 
@@ -112,21 +118,21 @@ onBeforeRouteUpdate((to) => {
     :deep(.el-menu-item) {
         height: 56px;
         line-height: 56px;
-        color: rgba(255, 255, 255, 0.72) !important;
+        color: var(--streamline-ink) !important;
         background-color: transparent !important;
         border-bottom: 3px solid transparent !important;
         transition: color 0.18s, background-color 0.18s;
 
         &:hover {
-            background-color: rgba(0, 0, 0, 0.12) !important;
-            color: #ffffff !important;
+            background-color: var(--streamline-parchment) !important;
+            color: var(--streamline-primary) !important;
             border-bottom-color: transparent !important;
         }
 
         &.is-active {
-            background-color: rgba(0, 0, 0, 0.18) !important;
-            color: #ffffff !important;
-            border-bottom-color: #ffffff !important;
+            background-color: rgba(0, 102, 204, 0.08) !important;
+            color: var(--streamline-primary) !important;
+            border-bottom-color: var(--streamline-primary) !important;
 
             .icon {
                 display: none !important;
@@ -137,30 +143,30 @@ onBeforeRouteUpdate((to) => {
     :deep(.el-sub-menu__title) {
         height: 56px;
         line-height: 56px;
-        color: rgba(255, 255, 255, 0.72) !important;
+        color: var(--streamline-ink) !important;
         background-color: transparent !important;
         border-bottom: 3px solid transparent !important;
         transition: color 0.18s, background-color 0.18s;
 
         &:hover {
-            background-color: rgba(0, 0, 0, 0.12) !important;
-            color: #ffffff !important;
+            background-color: var(--streamline-parchment) !important;
+            color: var(--streamline-primary) !important;
         }
 
         .el-sub-menu__icon-arrow {
-            color: rgba(255, 255, 255, 0.50) !important;
+            color: var(--streamline-muted) !important;
             font-size: 11px !important;
         }
     }
 
     :deep(.el-sub-menu.is-opened > .el-sub-menu__title) {
-        background-color: rgba(0, 0, 0, 0.15) !important;
-        color: #ffffff !important;
+        background-color: rgba(0, 102, 204, 0.08) !important;
+        color: var(--streamline-primary) !important;
     }
 
     :deep(.el-sub-menu.is-active > .el-sub-menu__title) {
-        color: #ffffff !important;
-        border-bottom-color: #ffffff !important;
+        color: var(--streamline-primary) !important;
+        border-bottom-color: var(--streamline-primary) !important;
     }
 }
 </style>
@@ -168,10 +174,10 @@ onBeforeRouteUpdate((to) => {
 <style lang="scss">
 .streamline-custom-popup.el-popper {
     padding: 5px !important;
-    background-color: #7a1a1a !important;
-    border: 0.5px solid rgba(255, 255, 255, 0.12) !important;
+    background-color: #ffffff !important;
+    border: 1px solid #e0e0e0 !important;
     border-radius: 8px !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.36) !important;
+    box-shadow: none !important;
 
     .el-menu {
         background-color: transparent !important;
@@ -183,20 +189,20 @@ onBeforeRouteUpdate((to) => {
         line-height: 1.4 !important;
         padding: 7px 14px !important;
         border-radius: 5px !important;
-        color: rgba(255, 255, 255, 0.75) !important;
+        color: #1d1d1f !important;
         background-color: transparent !important;
         font-size: 13.5px !important;
         letter-spacing: 0.005em;
         transition: background-color 0.15s, color 0.15s;
 
         &:hover {
-            background-color: rgba(0, 0, 0, 0.15) !important;
-            color: #ffffff !important;
+            background-color: #f5f5f7 !important;
+            color: #0066cc !important;
         }
 
         &.is-active {
-            background-color: rgba(0, 0, 0, 0.22) !important;
-            color: #ffffff !important;
+            background-color: rgba(0, 102, 204, 0.10) !important;
+            color: #0066cc !important;
 
             &::before {
                 content: '';
@@ -204,7 +210,7 @@ onBeforeRouteUpdate((to) => {
                 width: 4px;
                 height: 4px;
                 border-radius: 50%;
-                background: rgba(255, 255, 255, 0.80);
+                background: #0066cc;
                 margin-right: 8px;
                 vertical-align: middle;
                 position: relative;
@@ -213,19 +219,19 @@ onBeforeRouteUpdate((to) => {
         }
 
         &.is-active:hover {
-            background-color: rgba(0, 0, 0, 0.28) !important;
-            color: #ffffff !important;
+            background-color: rgba(0, 102, 204, 0.14) !important;
+            color: #0066cc !important;
         }
     }
 }
 
 .streamline-custom-popup.el-menu--popup .el-menu-item:not(.is-disabled):hover {
-    background-color: rgba(0, 0, 0, 0.15) !important;
-    color: #ffffff !important;
+    background-color: #f5f5f7 !important;
+    color: #0066cc !important;
 }
 
 .streamline-custom-popup.el-menu--popup .el-menu-item.is-active:not(.is-disabled):hover {
-    background-color: rgba(0, 0, 0, 0.28) !important;
-    color: #ffffff !important;
+    background-color: rgba(0, 102, 204, 0.14) !important;
+    color: #0066cc !important;
 }
 </style>
