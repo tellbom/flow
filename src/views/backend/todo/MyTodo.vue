@@ -1,23 +1,28 @@
 <template>
   <div class="my-todo-page">
 
-    <!-- ══ 页头 Banner ══ -->
-    <div class="page-banner">
-      <div class="banner-bg-circle banner-circle-1"></div>
-      <div class="banner-bg-circle banner-circle-2"></div>
-      <div class="banner-content">
-        <div class="banner-left">
-          <div class="banner-icon-wrap"><el-icon :size="32"><Bell /></el-icon></div>
-          <div>
-            <div class="banner-title">我的待办</div>
-            <div class="banner-sub">共 <b>{{ todoList.length }}</b> 条任务等待处理</div>
-          </div>
+    <!-- ══ 页头 ══ -->
+    <div class="page-header">
+      <div class="page-header-left">
+        <div class="page-header-icon">
+          <el-icon :size="20"><Bell /></el-icon>
         </div>
-        <div class="banner-stats">
-          <div class="bstat" v-for="s in bannerStats" :key="s.label">
-            <div class="bstat-val" :style="{ color: s.color }">{{ s.val }}</div>
-            <div class="bstat-label">{{ s.label }}</div>
-          </div>
+        <div class="page-header-text">
+          <h1 class="page-title">我的待办</h1>
+          <p class="page-subtitle">
+            共 <span class="count-highlight">{{ todoList.length }}</span> 条任务等待处理
+          </p>
+        </div>
+      </div>
+
+      <div class="page-header-stats">
+        <div
+          v-for="s in headerStats"
+          :key="s.label"
+          class="stat-item"
+        >
+          <div class="stat-val" :class="s.cls">{{ s.val }}</div>
+          <div class="stat-label">{{ s.label }}</div>
         </div>
       </div>
     </div>
@@ -153,15 +158,20 @@ const pagedList = computed(() => {
   return todoList.value.slice(s, s + pagination.size)
 })
 
-const bannerStats = computed(() => {
+const headerStats = computed(() => {
   const list = todoList.value
   return [
-    { label: '紧急', val: list.filter(t => t.priority === 3).length, color: '#ef4444' },
-    { label: '高优先级', val: list.filter(t => t.priority === 2).length, color: '#f59e0b' },
-    { label: '今日新增', val: list.filter(t => {
-      const d = new Date(t.createTime); const now = new Date()
-      return d.toDateString() === now.toDateString()
-    }).length, color: '#007aff' },
+    { label: '紧急', val: list.filter(t => t.priority === 3).length, cls: 'val-danger' },
+    { label: '高优先级', val: list.filter(t => t.priority === 2).length, cls: 'val-warning' },
+    {
+      label: '今日新增',
+      val: list.filter(t => {
+        const d = new Date(t.createTime)
+        const now = new Date()
+        return d.toDateString() === now.toDateString()
+      }).length,
+      cls: 'val-primary',
+    },
   ]
 })
 
@@ -255,62 +265,123 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.my-todo-page { padding: 24px; background: #f5f7fa; min-height: 100vh; }
-
-/* ── Banner ── */
-.page-banner {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, #c62f2f 0%, #e05252 100%);
-  border-radius: 20px;
-  padding: 32px 36px;
-  margin-bottom: 20px;
-  box-shadow: 0 12px 40px rgba(198, 47, 47, .28);
+.my-todo-page {
+  padding: var(--wf-space-24);
+  background: var(--wf-bg);
+  min-height: 100vh;
 }
-.banner-bg-circle {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255,255,255,.06);
-  pointer-events: none;
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wf-space-24);
+  background: var(--wf-canvas);
+  border-radius: var(--wf-radius-lg);
+  padding: var(--wf-space-20) var(--wf-space-24);
+  margin-bottom: var(--wf-space-16);
+  box-shadow: var(--wf-shadow-card);
 }
-.banner-circle-1 { width: 280px; height: 280px; top: -80px; right: -40px; }
-.banner-circle-2 { width: 160px; height: 160px; bottom: -60px; right: 200px; }
 
-.banner-content {
-  position: relative; z-index: 1;
-  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+.page-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--wf-space-16);
 }
-.banner-left  { display: flex; align-items: center; gap: 20px; }
-.banner-icon-wrap {
-  width: 60px; height: 60px; border-radius: 16px;
-  background: rgba(255,255,255,.18);
-  backdrop-filter: blur(8px);
-  display: flex; align-items: center; justify-content: center;
-  color: #fff; flex-shrink: 0;
+
+.page-header-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--wf-radius-md);
+  background: var(--wf-primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--wf-primary);
 }
-.banner-title { font-size: 28px; font-weight: 800; color: #fff; letter-spacing: -1px; margin-bottom: 4px; }
-.banner-sub   { font-size: 14px; color: rgba(255,255,255,.8); }
-.banner-sub b { color: #fcda50; font-size: 18px; }
 
-.banner-stats { display: flex; gap: 32px; }
-.bstat       { text-align: center; }
-.bstat-val   { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
-.bstat-label { font-size: 12px; color: rgba(255,255,255,.7); margin-top: 2px; }
+.page-title {
+  font-size: var(--wf-font-xl);
+  font-weight: var(--wf-font-weight-bold);
+  color: var(--wf-ink);
+  letter-spacing: 0;
+  margin: 0 0 var(--wf-space-2);
+  line-height: var(--wf-line-height-tight);
+}
 
-/* ── 任务名称单元格 ── */
-.task-name-cell { display: flex; flex-direction: column; gap: 2px; }
-.task-main      { font-size: 14px; font-weight: 600; color: #1a1a1a; }
-.task-sub       { font-size: 12px; color: #888; }
+.page-subtitle {
+  font-size: var(--wf-font-sm);
+  color: var(--wf-ink-3);
+  margin: 0;
+  line-height: var(--wf-line-height-base);
+}
 
-/* ── 优先级点 ── */
+.count-highlight {
+  font-weight: var(--wf-font-weight-bold);
+  color: var(--wf-primary);
+  font-size: var(--wf-font-md);
+}
+
+.page-header-stats {
+  display: flex;
+  gap: var(--wf-space-32);
+  flex-shrink: 0;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-val {
+  font-size: var(--wf-font-2xl);
+  font-weight: var(--wf-font-weight-black);
+  letter-spacing: 0;
+  line-height: 1;
+  margin-bottom: var(--wf-space-4);
+}
+
+.stat-label {
+  font-size: var(--wf-font-xs);
+  color: var(--wf-ink-3);
+  white-space: nowrap;
+}
+
+.val-danger { color: var(--wf-danger); }
+.val-warning { color: var(--wf-warning); }
+.val-primary { color: var(--wf-primary); }
+.val-success { color: var(--wf-success); }
+.val-neutral { color: var(--wf-ink-2); }
+
+.task-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wf-space-2);
+}
+
+.task-main {
+  font-size: var(--wf-font-md);
+  font-weight: var(--wf-font-weight-semibold);
+  color: var(--wf-ink);
+}
+
+.task-sub {
+  font-size: var(--wf-font-sm);
+  color: var(--wf-ink-3);
+}
+
 .priority-dot {
-  display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 5px; vertical-align: middle;
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
-.p-3 { background: #ef4444; }
-.p-2 { background: #f59e0b; }
-.p-1 { background: #6b7280; }
-.p-0 { background: #d1d5db; }
 
-/* ── 进度触发 ── */
-
+.p-3 { background: var(--wf-danger); }
+.p-2 { background: var(--wf-warning); }
+.p-1 { background: var(--wf-ink-3); }
+.p-0 { background: var(--wf-neutral); }
 </style>
