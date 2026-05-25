@@ -329,16 +329,12 @@ defineExpose({
 
 <style scoped>
 .common-search {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.04);
-  transition: all 0.3s ease;
-}
-
-.common-search:hover {
-  box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.08);
+  background: var(--wf-canvas);
+  border-radius: var(--wf-radius-lg);
+  padding: var(--wf-space-20) var(--wf-space-24);
+  margin-bottom: var(--wf-space-16);
+  box-shadow: var(--wf-shadow-card);
+  transition: box-shadow var(--wf-transition-base);
 }
 
 .search-form {
@@ -348,103 +344,100 @@ defineExpose({
 }
 
 :deep(.el-form-item) {
-  margin-right: 16px;
-  margin-bottom: 16px;
+  margin-right: var(--wf-space-16);
+  margin-bottom: var(--wf-space-16);
 }
 
 :deep(.el-form-item__label) {
-  font-weight: 500;
-  color: #303133;
-  font-size: 14px;
+  font-weight: var(--wf-font-weight-medium);
+  color: var(--wf-ink-2);
+  font-size: var(--wf-font-md);
 }
 
 .search-buttons {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--wf-space-8);
 }
 
 .expand-btn {
-  margin-left: 4px;
-  padding: 8px 12px;
-  font-size: 13px;
-  color: #606266;
+  margin-left: var(--wf-space-4);
+  padding: var(--wf-space-8) var(--wf-space-12);
+  font-size: var(--wf-font-base);
+  color: var(--wf-ink-3);
+  transition: color var(--wf-transition-fast);
 }
 
 .expand-btn:hover {
-  color: #409EFF;
+  color: var(--wf-primary);
 }
 
 .number-range {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--wf-space-8);
 }
 
 .range-separator {
-  color: #909399;
-  font-weight: 500;
+  color: var(--wf-ink-3);
+  font-weight: var(--wf-font-weight-medium);
 }
 
-/* 输入框样式优化 */
 :deep(.el-input__wrapper) {
-  border-radius: 8px;
-  box-shadow: 0 0 0 1px #dcdfe6 inset;
-  transition: all 0.2s;
+  border-radius: var(--wf-radius-sm);
+  box-shadow: 0 0 0 1px var(--wf-border) inset;
+  transition: box-shadow var(--wf-transition-fast);
 }
 
 :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px #c0c4cc inset;
+  box-shadow: 0 0 0 1px var(--wf-ink-disabled) inset;
 }
 
 :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px #409EFF inset;
+  box-shadow: 0 0 0 1.5px var(--wf-primary) inset;
 }
 
-:deep(.el-select .el-input__wrapper) {
-  border-radius: 8px;
-}
-
-:deep(.el-date-editor) {
-  border-radius: 8px;
-}
-
+:deep(.el-select .el-input__wrapper),
+:deep(.el-date-editor),
 :deep(.el-input-number) {
-  border-radius: 8px;
+  border-radius: var(--wf-radius-sm);
 }
 
-/* 按钮样式 */
 :deep(.el-button) {
-  border-radius: 8px;
-  font-weight: 500;
+  border-radius: var(--wf-radius-sm);
+  font-weight: var(--wf-font-weight-medium);
   padding: 9px 20px;
-  transition: all 0.2s;
+  transition:
+    background var(--wf-transition-fast),
+    color var(--wf-transition-fast),
+    border-color var(--wf-transition-fast),
+    transform var(--wf-transition-fast);
 }
 
 :deep(.el-button--primary) {
-  background: linear-gradient(135deg, #409EFF 0%, #5cadff 100%);
-  border: none;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+  background: var(--wf-primary);
+  border-color: var(--wf-primary);
 }
 
 :deep(.el-button--primary:hover) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
+  background: var(--wf-primary-hover);
+  border-color: var(--wf-primary-hover);
 }
 
-:deep(.el-button--primary:active) {
-  transform: translateY(0);
+:deep(.el-button--primary:active),
+:deep(.el-button:not(.el-button--primary):active) {
+  transform: scale(0.95);
 }
 
-:deep(.el-button:not(.el-button--primary)) {
-  background: #f5f7fa;
-  border: 1px solid #e4e7ed;
-  color: #606266;
+:deep(.el-button:not(.el-button--primary):not(.el-button--text)) {
+  background: var(--wf-bg-section);
+  border: 1px solid var(--wf-border);
+  color: var(--wf-ink-2);
 }
 
-:deep(.el-button:not(.el-button--primary):hover) {
-  background: #ecf5ff;
-  border-color: #b3d8ff;
-  color: #409EFF;
+:deep(.el-button:not(.el-button--primary):not(.el-button--text):hover) {
+  background: var(--wf-primary-light);
+  border-color: var(--wf-primary-border);
+  color: var(--wf-primary);
 }
 </style>
