@@ -338,7 +338,6 @@ import FlowGraph          from './FlowGraph.vue'
 import { businessTypeMap, priorityMap, apiReassignTask } from './mockData.js'
 import { resolveComponent } from '/@/router/componentRegistry.js'
 
-// ── Props ──────────────────────────────────────────────────────────────
 const props = defineProps({
   modelValue:      { type: Boolean, default: false },
   readonly:        { type: Boolean, default: false },
@@ -351,49 +350,34 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue', 'approved', 'rejected', 'reassigned'])
 
-// ── 抽屉宽度 ──────────────────────────────────────────────────────────
 const drawerWidth = '860px'
 
-// ── 双向绑定 visible ──────────────────────────────────────────────────
 const drawerVisible = computed({
   get: () => props.modelValue,
   set: v => emit('update:modelValue', v),
 })
 
-// ── Tab ───────────────────────────────────────────────────────────────
 const activeTab = ref('form')
-
-// ── 审批意见 & 表单 ref ────────────────────────────────────────────────
 const approveComment = ref('')
 const approveFormRef = ref(null)
 
-// bizFormComponent 必须用 shallowRef + watch，不能用 computed：
-// computed 每次响应式依赖变化都会返回新对象引用，
-// Vue diff 误判组件类型改变，强制卸载重建，
-// 销毁过程中访问已为 null 的 vnode 导致 emitsOptions 报错。
 const bizFormComponent = shallowRef(MockApproveForm)
 
 watch(
   () => props.taskInfo?.pageCode,
   (pageCode) => {
-    if (!pageCode) {
-      bizFormComponent.value = MockApproveForm
-    } else {
-      bizFormComponent.value = resolveComponent(pageCode) ?? MockApproveForm
-    }
+    bizFormComponent.value = (!pageCode)
+      ? MockApproveForm
+      : (resolveComponent(pageCode) ?? MockApproveForm)
   },
   { immediate: true }
 )
 
-// ── conditionalOn 求值 ────────────────────────────────────────────────
-// 格式："varName==value"，与后端 SlotVariableConverter.EvaluateCondition 对齐
-// 支持布尔比较（true/false 不区分大小写）和字符串比较（不区分大小写）
 function evaluateCondition(condition, variables) {
   if (!condition) return true
   try {
     const negate = condition.startsWith('!')
     const expr   = negate ? condition.slice(1) : condition
-    // 兼容 == 和 = 两种分隔符
     const sepIdx = expr.indexOf('==') >= 0 ? expr.indexOf('==') : expr.indexOf('=')
     const sepLen = expr.indexOf('==') >= 0 ? 2 : 1
     if (sepIdx < 0) {
@@ -403,7 +387,6 @@ function evaluateCondition(condition, variables) {
     const varName  = expr.slice(0, sepIdx).trim()
     const expected = expr.slice(sepIdx + sepLen).trim()
     const actual   = String(variables[varName] ?? '')
-    // 布尔比较
     const boolMap  = { true: true, false: false }
     const eLower   = expected.toLowerCase()
     const aLower   = actual.toLowerCase()
@@ -416,21 +399,16 @@ function evaluateCondition(condition, variables) {
   }
 }
 
-// ── 流程变量（由表单组件提供定义，Drawer 统一维护取值）─────────────────
-// FlowVariableDef: { key, label, component: 'radio'|'select', options: [{value,label}], defaultValue }
 const flowVarDefs    = ref([])
 const flowVars       = ref({})
-// 各 Slot 的推荐候选人：{ [slotKey]: User[] }
 const slotCandidates = ref({})
 
-// 表单组件挂载/切换后拉取变量定义并初始化取值
 watch(approveFormRef, async (formRef) => {
   flowVarDefs.value    = []
   flowVars.value       = {}
   slotCandidates.value = {}
   if (!formRef) return
 
-  // 触发表单业务数据初始化（时机由 Drawer 控制）
   const context = {
     taskId:       props.taskInfo?.taskId      ?? '',
     businessId:   props.taskInfo?.businessId  ?? '',
@@ -445,7 +423,6 @@ watch(approveFormRef, async (formRef) => {
   defs.forEach(d => { initial[d.key] = d.defaultValue ?? null })
   flowVars.value = initial
 
-  // 为每个 Slot 加载推荐候选人（表单组件可选实现 getSlotCandidates）
   const slots = props.taskInfo?.requiredSlots ?? []
   const candidateResults = await Promise.allSettled(
     slots.map(async slot => ({
@@ -462,38 +439,31 @@ watch(approveFormRef, async (formRef) => {
   slotCandidates.value = candidates
 })
 
-// ── 激活 Slot 列表（由 requiredSlots + flowVars 计算）─────────────────
 const activeSlots = computed(() =>
   (props.taskInfo?.requiredSlots ?? []).filter(slot =>
     evaluateCondition(slot.conditionalOn, flowVars.value)
   )
 )
 
-// ── 每个 slotKey 的选人结果（Drawer 统一维护）────────────────────────
-// 结构：{ [slotKey]: User[] }
 const slotSelections = ref({})
 
-// taskInfo 变化时重置选人（切换任务）
 watch(() => props.taskInfo, () => {
   const initSel = {}
   ;(props.taskInfo?.requiredSlots ?? []).forEach(s => { initSel[s.slotKey] = [] })
   slotSelections.value = initSel
 }, { immediate: true })
 
-// activeSlots 变化时清理失活 Slot 的选人，避免旧数据混入提交
 watch(activeSlots, (slots) => {
   const activeKeys = new Set(slots.map(s => s.slotKey))
   const cleaned = {}
-  // 只保留当前激活 Slot 的选人
   Object.keys(slotSelections.value).forEach(key => {
     cleaned[key] = activeKeys.has(key) ? slotSelections.value[key] : []
   })
   slotSelections.value = cleaned
 })
 
-// ── 选人对话框（Drawer 统一管理）────────────────────────────────────
 const selectorVisible    = ref(false)
-const activeSelectorSlot = ref(null)   // 当前触发选人的 SlotDefinition
+const activeSelectorSlot = ref(null)
 
 function openSlotSelector(slot) {
   activeSelectorSlot.value = slot
@@ -511,7 +481,6 @@ function removeSlotUser(slotKey, user) {
     (slotSelections.value[slotKey] ?? []).filter(u => u.id !== user.id)
 }
 
-// 使用推荐候选人（单个）
 function useSlotCandidate(slotKey, candidate) {
   const current = slotSelections.value[slotKey] ?? []
   const uid = candidate.id ?? candidate.workNo
@@ -519,7 +488,6 @@ function useSlotCandidate(slotKey, candidate) {
   slotSelections.value[slotKey] = [...current, candidate]
 }
 
-// 一键使用全部推荐候选人
 function useAllSlotCandidates(slotKey) {
   const current  = slotSelections.value[slotKey] ?? []
   const usedIds  = new Set(current.map(u => u.id ?? u.workNo))
@@ -529,12 +497,9 @@ function useAllSlotCandidates(slotKey) {
   slotSelections.value[slotKey] = [...current, ...toAdd]
 }
 
-// ── 提交状态 ──────────────────────────────────────────────────────────
-const submitting = ref('')   // '' | 'approve' | 'reject' | 'reassign'
+const submitting = ref('')
 
-// ── 同意 ──────────────────────────────────────────────────────────────
 const handleApprove = async () => {
-  // 1. 校验所有激活 Slot 的必填项
   for (const slot of activeSlots.value) {
     if (slot.required && !(slotSelections.value[slot.slotKey]?.length)) {
       ElMessage.warning(`请为「${slot.label}」选择处理人`)
@@ -542,7 +507,6 @@ const handleApprove = async () => {
     }
   }
 
-  // 2. 组装流程中心参数（1:1 复刻，由业务后端转发给流程中心）
   const nextSlotSelections = activeSlots.value.map(slot => ({
     slotKey: slot.slotKey,
     users:   (slotSelections.value[slot.slotKey] ?? []).map(u => u.workNo ?? u.id),
@@ -557,9 +521,6 @@ const handleApprove = async () => {
     businessVariables:  { ...flowVars.value },
   }
 
-  // 3. 调业务表单的 submitBusiness(payload)
-  //    表单负责：业务字段校验 + 调业务后端（业务后端内部调流程中心）
-  //    返回 false → 阻断，返回 true → 成功
   submitting.value = 'approve'
   try {
     const ok = await approveFormRef.value?.submitBusiness?.(flowPayload)
@@ -572,8 +533,6 @@ const handleApprove = async () => {
   }
 }
 
-// ── 驳回 ──────────────────────────────────────────────────────────────
-// rejectOptions 来自 taskInfo，computed 包装避免模板中反复用可选链
 const rejectOptions = computed(() => props.taskInfo?.rejectOptions ?? [])
 
 const rejectDialogVisible = ref(false)
@@ -584,7 +543,6 @@ const rejectRules         = {
   rejectReason: [{ required: true, message: '请填写驳回原因',  trigger: 'blur'   }],
 }
 
-// 打开驳回弹窗：只有一个选项时自动预选，用户无需手动选
 function openRejectDialog() {
   rejectForm.value.rejectCode   = rejectOptions.value.length === 1
     ? rejectOptions.value[0].rejectCode
@@ -596,7 +554,6 @@ function openRejectDialog() {
 const handleReject = async () => {
   await rejectFormRef.value?.validate()
 
-  // 组装驳回 payload（1:1 复刻 CompleteTaskRequest，由业务后端转发流程中心）
   const rejectPayload = {
     taskId:             props.taskInfo?.taskId     ?? '',
     businessId:         props.taskInfo?.businessId ?? '',
@@ -610,8 +567,6 @@ const handleReject = async () => {
 
   submitting.value = 'reject'
   try {
-    // 由业务表单组件的 submitBusiness 负责调业务后端，
-    // 业务后端内部保证业务状态回滚与流程中心驳回的原子性
     const ok = await approveFormRef.value?.submitBusiness?.(rejectPayload)
     if (ok === false) return
     ElMessage.success('已驳回')
@@ -623,7 +578,6 @@ const handleReject = async () => {
   }
 }
 
-// ── 转派（直接调流程中心，保持原有逻辑）────────────────────────────
 const reassignDialogVisible = ref(false)
 const reassignTarget        = ref(null)
 
@@ -648,23 +602,21 @@ const handleReassignSubmit = async () => {
   }
 }
 
-// ── 关闭：重置所有状态 ────────────────────────────────────────────────
 const handleClose = (done) => {
-  approveComment.value         = ''
-  rejectForm.value.rejectCode  = ''
+  approveComment.value          = ''
+  rejectForm.value.rejectCode   = ''
   rejectForm.value.rejectReason = ''
-  flowVarDefs.value            = []
-  flowVars.value               = {}
-  slotSelections.value         = {}
-  slotCandidates.value         = {}
-  selectorVisible.value        = false
-  activeSelectorSlot.value     = null
-  reassignTarget.value         = null
-  activeTab.value              = 'form'
+  flowVarDefs.value             = []
+  flowVars.value                = {}
+  slotSelections.value          = {}
+  slotCandidates.value          = {}
+  selectorVisible.value         = false
+  activeSelectorSlot.value      = null
+  reassignTarget.value          = null
+  activeTab.value               = 'form'
   done()
 }
 
-// ── 工具函数 ──────────────────────────────────────────────────────────
 const formatDate = (dt) => {
   if (!dt) return '-'
   return new Date(dt).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
@@ -674,18 +626,20 @@ const statusTagType = (s) =>
 const statusLabel = (s) =>
   ({ running: '审批中', completed: '已完成', terminated: '已撤回', rejected: '已驳回' }[s] || s)
 </script>
+
 <style>
-.task-approve-drawer{
+.task-approve-drawer {
   top: 48px !important;
   height: calc(100% - 48px) !important;
 }
 </style>
+
 <style scoped>
 /* ── 抽屉整体 ── */
 :deep(.el-drawer__header) {
   padding: 0;
   margin-bottom: 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--wf-divider);
 }
 :deep(.el-drawer__body) {
   padding: 0;
@@ -700,35 +654,44 @@ const statusLabel = (s) =>
   align-items: center;
   justify-content: space-between;
   padding: 14px 20px;
-  gap: 16px;
+  gap: var(--wf-space-16);
   width: 100%;
 }
+
 .header-title-block { flex: 1; min-width: 0; }
+
 .header-task-name {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 6px;
-  letter-spacing: -.3px;
+  font-size: var(--wf-font-lg);
+  font-weight: var(--wf-font-weight-bold);
+  color: var(--wf-ink);
+  margin-bottom: var(--wf-space-6);
+  letter-spacing: 0;
 }
+
 .header-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--wf-space-8);
   flex-wrap: wrap;
 }
+
 .header-bid {
-  font-size: 12px;
-  color: #bbb;
+  font-size: var(--wf-font-sm);
+  color: var(--wf-ink-disabled);
   font-family: 'SF Mono', 'Consolas', monospace;
 }
+
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--wf-space-8);
   flex-shrink: 0;
 }
-:deep(.header-actions .el-button) { border-radius: 8px; font-weight: 600; }
+
+:deep(.header-actions .el-button) {
+  border-radius: var(--wf-radius-sm);
+  font-weight: var(--wf-font-weight-semibold);
+}
 
 /* ── 主体 ── */
 .drawer-body {
@@ -745,102 +708,166 @@ const statusLabel = (s) =>
   flex-direction: column;
   overflow: hidden;
 }
+
 :deep(.drawer-tabs > .el-tabs__header) {
   margin: 0;
   padding: 0 20px;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--wf-canvas);
+  border-bottom: 1px solid var(--wf-divider);
   flex-shrink: 0;
 }
+
 :deep(.drawer-tabs > .el-tabs__content) {
   flex: 1;
   overflow-y: auto;
   padding: 0;
 }
-:deep(.drawer-tabs .el-tab-pane)             { height: 100%; }
-:deep(.drawer-tabs .el-tabs__item)           { font-size: 14px; font-weight: 500; }
-:deep(.drawer-tabs .el-tabs__item.is-active) { color: #c62f2f; font-weight: 700; }
-:deep(.drawer-tabs .el-tabs__active-bar)     { background: #c62f2f; }
 
-.tab-pane-content { padding: 20px; }
+:deep(.drawer-tabs .el-tab-pane)   { height: 100%; }
+:deep(.drawer-tabs .el-tabs__item) { font-size: var(--wf-font-md); font-weight: var(--wf-font-weight-medium); }
+
+:deep(.drawer-tabs .el-tabs__item.is-active) {
+  color: var(--wf-primary);
+  font-weight: var(--wf-font-weight-bold);
+}
+
+:deep(.drawer-tabs .el-tabs__active-bar) {
+  background: var(--wf-primary);
+}
+
+.tab-pane-content { padding: var(--wf-space-20); }
 
 /* ── 审批意见 ── */
-.divider-text { font-size: 12px; color: #999; font-weight: 600; letter-spacing: .5px; }
-:deep(.el-divider__text)                  { background: transparent; }
-.comment-input                            { margin-top: 4px; }
-:deep(.comment-input .el-textarea__inner) { border-radius: 10px; }
+.divider-text {
+  font-size: var(--wf-font-sm);
+  color: var(--wf-ink-3);
+  font-weight: var(--wf-font-weight-semibold);
+  letter-spacing: 0.5px;
+}
+
+:deep(.el-divider__text) { background: transparent; }
+
+.comment-input { margin-top: var(--wf-space-4); }
+
+:deep(.comment-input .el-textarea__inner) {
+  border-radius: var(--wf-radius-md);
+}
 
 /* ── 流程变量选择区 ── */
-.flow-var-section  { display: flex; flex-direction: column; gap: 14px; margin-top: 4px; }
-.flow-var-item     { display: flex; flex-direction: column; gap: 6px; }
-.flow-var-label    { font-size: 12px; color: #999; font-weight: 600; letter-spacing: .3px; }
+.flow-var-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: var(--wf-space-4);
+}
+
+.flow-var-item  { display: flex; flex-direction: column; gap: var(--wf-space-6); }
+.flow-var-label {
+  font-size: var(--wf-font-sm);
+  color: var(--wf-ink-3);
+  font-weight: var(--wf-font-weight-semibold);
+  letter-spacing: 0.3px;
+}
 
 /* ── 选人区 ── */
-.slot-assignee-section { display: flex; flex-direction: column; gap: 14px; margin-top: 4px; }
-.slot-item             { display: flex; flex-direction: column; gap: 4px; }
+.slot-assignee-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: var(--wf-space-4);
+}
+
+.slot-item { display: flex; flex-direction: column; gap: var(--wf-space-4); }
 
 /* ── 对话框 ── */
-:deep(.reassign-dialog .el-dialog__body) { padding: 12px 20px; }
-.reassign-tip { margin-bottom: 12px; }
+:deep(.reassign-dialog .el-dialog__body)      { padding: 12px 20px; }
+:deep(.reassign-dialog .el-dialog)            { border-radius: var(--wf-radius-lg); }
+:deep(.slot-selector-dialog .el-dialog)       { border-radius: var(--wf-radius-lg); }
+
+.reassign-tip { margin-bottom: var(--wf-space-12); }
 
 /* ── 驳回选项列表 ── */
 .reject-options-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--wf-space-8);
 }
+
 .reject-option-item {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   padding: 10px 14px;
-  border: 1.5px solid #e4e7ed;
-  border-radius: 9px;
+  border: 1.5px solid var(--wf-border);
+  border-radius: var(--wf-radius-md);
   cursor: pointer;
-  transition: border-color .12s, background .12s;
-  background: #fff;
+  background: var(--wf-canvas);
+  transition: border-color var(--wf-transition-fast),
+              background   var(--wf-transition-fast);
 }
-.reject-option-item:hover       { border-color: #c0c4cc; background: #fafafa; }
-.reject-option-item.is-selected { border-color: #c62f2f; background: #fff1f0; }
+
+.reject-option-item:hover {
+  border-color: var(--wf-ink-disabled);
+  background: var(--wf-bg-card);
+}
+
+.reject-option-item.is-selected {
+  border-color: var(--wf-primary);
+  background: var(--wf-primary-light);
+}
+
 .ro-radio {
-  width: 16px; height: 16px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  border: 1.5px solid #c0c4cc;
-  flex-shrink: 0; margin-top: 2px;
-  display: flex; align-items: center; justify-content: center;
-  transition: border-color .12s;
+  border: 1.5px solid var(--wf-ink-disabled);
+  flex-shrink: 0;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--wf-transition-fast);
 }
-.reject-option-item.is-selected .ro-radio { border-color: #c62f2f; }
+
+.reject-option-item.is-selected .ro-radio {
+  border-color: var(--wf-primary);
+}
+
 .ro-dot {
-  width: 8px; height: 8px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: #c62f2f;
+  background: var(--wf-primary);
 }
+
 .ro-info  { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.ro-label { font-size: 13px; font-weight: 600; color: #1d2129; }
-.ro-desc  { font-size: 11px; color: #86909c; }
+.ro-label { font-size: var(--wf-font-base); font-weight: var(--wf-font-weight-semibold); color: var(--wf-ink); }
+.ro-desc  { font-size: var(--wf-font-xs); color: var(--wf-ink-3); }
 
 /* ── 流程进度 Tab ── */
 .flow-tab-content {
-  padding: 16px 20px;
+  padding: var(--wf-space-16) var(--wf-space-20);
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
+
 .flow-meta-bar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px 20px;
   padding: 10px 16px;
-  background: #fafafa;
-  border-radius: 10px;
-  border: 1px solid #f0f0f0;
-  font-size: 13px;
+  background: var(--wf-bg-card);
+  border-radius: var(--wf-radius-md);
+  border: 1px solid var(--wf-divider);
+  font-size: var(--wf-font-base);
   flex-shrink: 0;
 }
+
 .fmb-item  { display: flex; align-items: center; gap: 7px; }
-.fmb-label { color: #aaa; white-space: nowrap; }
-.fmb-val   { color: #333; font-weight: 600; }
-.fmb-sep   { width: 1px; height: 14px; background: #e5e5e5; }
+.fmb-label { color: var(--wf-ink-3); white-space: nowrap; }
+.fmb-val   { color: var(--wf-ink); font-weight: var(--wf-font-weight-semibold); }
+
+.fmb-sep   { width: 1px; height: 14px; background: var(--wf-border); }
 </style>
