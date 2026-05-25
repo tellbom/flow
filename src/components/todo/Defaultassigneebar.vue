@@ -16,16 +16,13 @@
         class="dab-card"
         :class="{ 'dab-card--used': isUsed(u) }"
       >
-        <!-- 头像 -->
         <div class="dab-avatar" :style="avatarStyle(u.name ?? u.userName)">
           {{ (u.name ?? u.userName ?? '?')[0] }}
         </div>
-        <!-- 信息 -->
         <div class="dab-info">
           <span class="dab-name">{{ u.name ?? u.userName }}</span>
           <span class="dab-pos">{{ u.position ?? u.currentPosition ?? '—' }}</span>
         </div>
-        <!-- 状态 / 操作 -->
         <div class="dab-action">
           <span v-if="isUsed(u)" class="dab-used-tag">
             <el-icon><CircleCheckFilled /></el-icon>已选
@@ -40,27 +37,11 @@
 </template>
 
 <script setup>
-/**
- * DefaultAssigneeBar.vue — 表单推荐处理人展示条
- *
- * 职责：
- *   展示由业务表单 getDefaultAssignees() 返回的推荐人员，
- *   提供「使用」（单个）和「一键使用」（全部）操作，
- *   已被选中的人员显示"已选"状态。
- *
- * Props:
- *   candidates  — 推荐人员列表 [{ id/workNo, name/userName, position/currentPosition }]
- *   usedIds     — 当前已选人员的 id/workNo 集合，用于标记已使用
- *
- * Emits:
- *   use-one(user)  — 使用单个推荐人
- *   use-all        — 一键使用全部推荐人
- */
 import { CircleCheckFilled, Promotion } from '@element-plus/icons-vue'
 
 const props = defineProps({
-  candidates: { type: Array,  default: () => [] },
-  usedIds:    { type: Array,  default: () => [] },
+  candidates: { type: Array, default: () => [] },
+  usedIds:    { type: Array, default: () => [] },
 })
 
 const emit = defineEmits(['use-one', 'use-all'])
@@ -71,9 +52,12 @@ function isUsed(u) {
 }
 
 const GRADS = [
-  ['#c62f2f','#e04545'], ['#f5a623','#e8940f'],
-  ['#27ae60','#2ecc71'], ['#3370ff','#5a8fff'],
-  ['#8e44ad','#9b59b6'], ['#16a085','#1abc9c'],
+  ['var(--wf-avatar-0-from)', 'var(--wf-avatar-0-to)'],
+  ['var(--wf-avatar-1-from)', 'var(--wf-avatar-1-to)'],
+  ['var(--wf-avatar-2-from)', 'var(--wf-avatar-2-to)'],
+  ['var(--wf-avatar-3-from)', 'var(--wf-avatar-3-to)'],
+  ['var(--wf-avatar-4-from)', 'var(--wf-avatar-4-to)'],
+  ['var(--wf-avatar-5-from)', 'var(--wf-avatar-5-to)'],
 ]
 function avatarStyle(name) {
   const idx = ((name ?? '').charCodeAt(0) || 0) % GRADS.length
@@ -84,11 +68,11 @@ function avatarStyle(name) {
 
 <style scoped>
 .dab-wrap {
-  border: 1.5px dashed #c5d8ff;
-  border-radius: 10px;
-  background: #f5f8ff;
+  border: 1.5px dashed var(--wf-primary-border);
+  border-radius: var(--wf-radius-md);
+  background: var(--wf-primary-light);
   overflow: hidden;
-  margin-top: 10px;
+  margin-top: var(--wf-space-8);
 }
 
 /* ── 头部 ── */
@@ -97,40 +81,61 @@ function avatarStyle(name) {
   align-items: center;
   gap: 7px;
   padding: 9px 14px;
-  background: #edf2ff;
-  border-bottom: 1px solid #c5d8ff;
+  background: var(--wf-primary-light);
+  border-bottom: 1px solid var(--wf-primary-border);
 }
+
 .dab-icon {
-  width: 22px; height: 22px;
-  border-radius: 6px;
-  background: #3370ff;
-  display: flex; align-items: center; justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--wf-radius-sm);
+  background: var(--wf-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 .dab-icon .el-icon { font-size: 11px; color: #fff; }
-.dab-title { font-size: 12px; font-weight: 700; color: #3370ff; white-space: nowrap; }
-.dab-hint  { font-size: 11px; color: #86909c; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.dab-title {
+  font-size: var(--wf-font-sm);
+  font-weight: var(--wf-font-weight-bold);
+  color: var(--wf-primary);
+  white-space: nowrap;
+}
+
+.dab-hint {
+  font-size: var(--wf-font-xs);
+  color: var(--wf-ink-3);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .dab-use-btn {
   flex-shrink: 0;
   padding: 3px 10px;
-  border-radius: 20px;
-  border: 1px solid #3370ff;
-  background: #3370ff;
+  border-radius: var(--wf-radius-pill);
+  border: 1px solid var(--wf-primary);
+  background: var(--wf-primary);
   color: #fff;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--wf-font-xs);
+  font-weight: var(--wf-font-weight-semibold);
   cursor: pointer;
   font-family: inherit;
-  transition: opacity .12s;
+  transition: opacity var(--wf-transition-fast),
+              transform var(--wf-transition-fast);
 }
-.dab-use-btn:hover { opacity: .85; }
+.dab-use-btn:hover  { opacity: 0.85; }
+.dab-use-btn:active { transform: scale(0.95); }
 
 /* ── 人员列表 ── */
 .dab-list {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  background: var(--wf-canvas);
 }
 
 .dab-card {
@@ -138,48 +143,63 @@ function avatarStyle(name) {
   align-items: center;
   gap: 9px;
   padding: 9px 14px;
-  border-bottom: 1px solid #dce7ff;
-  transition: background .1s;
+  border-bottom: 1px solid var(--wf-divider);
+  transition: background var(--wf-transition-fast);
 }
-.dab-card:last-child  { border-bottom: none; }
-.dab-card:hover       { background: #edf2ff; }
-.dab-card--used       { opacity: .65; }
+.dab-card:last-child { border-bottom: none; }
+.dab-card:hover      { background: var(--wf-primary-light); }
+.dab-card--used      { opacity: 0.65; }
 
 .dab-avatar {
-  width: 30px; height: 30px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   color: #fff;
-  font-size: 12px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
+  font-size: var(--wf-font-sm);
+  font-weight: var(--wf-font-weight-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 5px rgba(0,0,0,.12);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
 }
+
 .dab-info {
-  flex: 1; min-width: 0;
-  display: flex; flex-direction: column; gap: 1px;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
-.dab-name { font-size: 13px; font-weight: 600; color: #1d2129; }
-.dab-pos  { font-size: 11px; color: #86909c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dab-name { font-size: var(--wf-font-base); font-weight: var(--wf-font-weight-semibold); color: var(--wf-ink); }
+.dab-pos  { font-size: var(--wf-font-xs); color: var(--wf-ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .dab-action { flex-shrink: 0; }
 
 .dab-used-tag {
-  display: inline-flex; align-items: center; gap: 3px;
-  font-size: 11px; font-weight: 600; color: #27ae60;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--wf-font-xs);
+  font-weight: var(--wf-font-weight-semibold);
+  color: var(--wf-success);
 }
 .dab-used-tag .el-icon { font-size: 13px; }
 
 .dab-add-btn {
   padding: 3px 10px;
-  border-radius: 20px;
-  border: 1px solid #3370ff;
+  border-radius: var(--wf-radius-pill);
+  border: 1px solid var(--wf-primary);
   background: transparent;
-  color: #3370ff;
-  font-size: 11px;
-  font-weight: 600;
+  color: var(--wf-primary);
+  font-size: var(--wf-font-xs);
+  font-weight: var(--wf-font-weight-semibold);
   cursor: pointer;
   font-family: inherit;
-  transition: background .1s, color .1s;
+  transition: background var(--wf-transition-fast),
+              color     var(--wf-transition-fast),
+              transform var(--wf-transition-fast);
 }
-.dab-add-btn:hover { background: #3370ff; color: #fff; }
+.dab-add-btn:hover  { background: var(--wf-primary); color: #fff; }
+.dab-add-btn:active { transform: scale(0.95); }
 </style>
