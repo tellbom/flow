@@ -219,6 +219,7 @@ const openApproveDrawer = async (row) => {
     businessId:    row.businessId,
     businessType:  row.businessType,
     nodeSemantic:  row.nodeSemantic,
+    roleKey:       row.roleKey ?? '',
     pageCode:      row.pageCode,
     pageUrl:       row.pageUrl ?? null,
     priority:      row.priority,
@@ -226,6 +227,9 @@ const openApproveDrawer = async (row) => {
     isAfterConvergencePoint: row.isAfterConvergencePoint ?? false,
     canReject:     row.canReject      ?? false,
     rejectOptions: row.rejectOptions  ?? [],
+    requiredSlots: row.requiredSlots  ?? [],
+    recommendedUsers: row.recommendedUsers ?? {},
+    restrictToRecommended: row.restrictToRecommended ?? {},
   }
   drawerVisible.value = true
 

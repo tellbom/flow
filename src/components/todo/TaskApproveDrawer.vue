@@ -361,9 +361,15 @@ const flowVars = ref({})
 
 // 激活槽位（过滤 conditionalOn）
 const activeSlots = computed(() =>
-  (props.taskInfo?.requiredSlots ?? []).filter(s =>
-    evaluateCondition(s.conditionalOn, flowVars.value)
-  )
+  (props.taskInfo?.requiredSlots ?? [])
+    .filter(s => evaluateCondition(s.conditionalOn, flowVars.value))
+    .map(s => ({
+      ...s,
+      restrictToRecommended:
+        s.restrictToRecommended
+        ?? props.taskInfo?.restrictToRecommended?.[s.slotKey]
+        ?? false,
+    }))
 )
 
 // ── 推荐候选人查找 ────────────────────────────────────────────
@@ -373,11 +379,19 @@ function getSlotCandidates(slot) {
   const rec    = props.taskInfo?.recommendedUsers ?? {}
   const taskRk = props.taskInfo?.roleKey          ?? ''
   // 工号数组
-  const ids = rec[taskRk] ?? rec[slot.slotKey] ?? []
-  // 映射为用户对象（从 userList 查；联调期间 userList = mockUserList）
+  const rawIds = rec[taskRk] ?? rec[slot.slotKey] ?? []
+  const ids = Array.isArray(rawIds) ? rawIds : []
+  // 优先映射本地用户对象；联调真实工号不在 mock 中时保留工号占位，避免推荐区空白。
   return ids
-    .map(workNo => userList.find(u => u.workNo === workNo))
-    .filter(Boolean)
+    .map(id => {
+      const workNo = String(id)
+      return userList.find(u => u.workNo === workNo || u.id === workNo) ?? {
+        id: workNo,
+        workNo,
+        name: workNo,
+        position: '推荐人员',
+      }
+    })
 }
 
 // ── 选人状态 ─────────────────────────────────────────────────

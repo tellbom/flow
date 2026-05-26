@@ -324,6 +324,7 @@ function buildReadonlyUrl(node) {
 const iframeLoadingMap = ref({})  // nodeKey → boolean（加载中）
 const iframeErrorMap   = ref({})  // nodeKey → boolean（加载失败）
 const iframeRetryMap   = ref({})  // nodeKey → number（重试计数，触发 URL 重算）
+const activeTab        = ref('')
 
 // Tab 切换时初始化该节点 iframe 状态
 watch(activeTab, (nodeKey) => {
@@ -357,8 +358,6 @@ function retryIframe(node) {
 // ══════════════════════════════════════════════════════════════
 //  默认激活第一个已完成节点
 // ══════════════════════════════════════════════════════════════
-
-const activeTab = ref('')
 
 watch(
   () => [props.modelValue, resolvedNodes.value],

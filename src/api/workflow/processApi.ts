@@ -229,6 +229,7 @@ export interface PendingTaskDto {
 
 export interface GetPendingTasksParams {
   employeeId?:  string
+  EmployeeId?:  string
   businessType?: string
   pageIndex?:   number
   pageSize?:    number
@@ -604,10 +605,15 @@ export function terminateProcess(data: TerminateProcessRequest) {
 
 /** GET /api/tasks/pending */
 export function getPendingTasks(params: GetPendingTasksParams = {}) {
+  const normalizedParams = {
+    ...params,
+    EmployeeId: params.EmployeeId ?? params.employeeId,
+  }
+
   return createProcessRequest<PageResult<PendingTaskDto>>({
     url:    '/api/tasks/pending',
     method: 'GET',
-    params,
+    params: normalizedParams,
   })
 }
 
