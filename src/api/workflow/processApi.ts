@@ -47,6 +47,7 @@
  */
 
 import { createProcessRequest } from './processAxios'
+import { useAdminInfo } from '/@/stores/adminInfo'
 
 // ══════════════════════════════════════════════════════════════
 //  公共
@@ -275,6 +276,9 @@ export interface CompleteTaskRequest {
 
   /** action=2 时必传：驳回原因 */
   rejectReason?:       string
+
+  employeeId?:         string
+  EmployeeId?:         string
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -623,8 +627,14 @@ export function getPendingTasks(params: GetPendingTasksParams = {}) {
  * 推荐确认模式：nextSlotSelections 必传，无槽位节点传 []
  */
 export function completeTask(data: CompleteTaskRequest) {
+  const adminInfo = useAdminInfo()
+  const normalizedData = {
+    ...data,
+    EmployeeId: data.EmployeeId ?? data.employeeId ?? adminInfo.userid,
+  }
+
   return createProcessRequest<null>(
-    { url: '/api/tasks/complete', method: 'POST', data },
+    { url: '/api/tasks/complete', method: 'POST', data: normalizedData },
     { loading: true, showSuccessMessage: true }
   )
 }
