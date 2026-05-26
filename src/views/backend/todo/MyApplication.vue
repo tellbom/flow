@@ -160,7 +160,6 @@ import {
   getProcessProgress,
   terminateProcess,
 } from "/@/api/workflow/processApi"
-import { adaptProgressToNodes } from "/@/api/workflow/processProgressAdapter"
 import { businessTypeMap } from "/@/components/todo/workflowConstants"
 
 // ── 状态 ──────────────────────────────────────
@@ -329,6 +328,7 @@ const nodesLoading    = ref(false)
 
 const openViewDrawer = async (row) => {
   const snapshot = { ...row }
+
   currentAppInfo.value = {
     businessId:  snapshot.businessId,
     title:       snapshot.businessId,
@@ -352,9 +352,49 @@ const openViewDrawer = async (row) => {
   if (flowRes.status === "fulfilled") currentFlowData.value = flowRes.value
 
   nodesLoading.value = false
-  if (nodesRes.status === "fulfilled") {
-    currentNodes.value = adaptProgressToNodes(nodesRes.value)
-  }
+  if (nodesRes.status !== "fulfilled") return
+
+  const progress = nodesRes.value
+  const roundCounter = {}
+
+  const historyNodes = (progress.auditHistory ?? []).map((record) => {
+    const baseKey = record.taskDefinitionKey
+    roundCounter[baseKey] = (roundCounter[baseKey] ?? 0) + 1
+    const round = roundCounter[baseKey]
+    const nodeKey = round > 1 ? `${baseKey}__round${round}` : baseKey
+
+    return {
+      nodeKey,
+      nodeName:       record.nodeName ?? baseKey,
+      nodeSemantic:   record.nodeSemantic ?? "",
+      operator:       record.operatorId ?? "",
+      completedAt:    record.operatedAt ?? null,
+      approveComment: record.comment ?? null,
+      pageCode:       record.pageCode ?? null,
+      slotSelections: record.slotSelections ?? [],
+      outcome:        record.action === "approve"
+        ? "approved"
+        : record.action === "reject"
+          ? "rejected_terminate"
+          : "",
+      round,
+    }
+  })
+
+  const activeNodes = (progress.currentNodes ?? []).map((node) => ({
+    nodeKey:        node.nodeId ?? node.taskId ?? "",
+    nodeName:       node.nodeName ?? "",
+    nodeSemantic:   node.nodeSemantic ?? "",
+    operator:       node.assignee ?? "",
+    completedAt:    null,
+    approveComment: null,
+    pageCode:       node.pageCode ?? null,
+    slotSelections: [],
+    outcome:        "",
+    round:          1,
+  }))
+
+  currentNodes.value = [...historyNodes, ...activeNodes]
 }
 
 // ── 撤回 ──────────────────────────────────────

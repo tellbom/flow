@@ -94,8 +94,6 @@
       :task-info="currentTask"
       :flow-render-data="currentFlowData"
       :flow-data-loading="flowDataLoading"
-      :org-list="orgList"
-      :user-list="userList"
       @approved="handleTaskDone"
       @rejected="handleTaskDone"
     />
@@ -112,13 +110,8 @@ import Commontable  from '/@/components/claudetable/Commontable.vue'
 import TaskApproveDrawer from '/@/components/todo/TaskApproveDrawer.vue'
 import { getPendingTasks, getFlowRender } from '/@/api/workflow/processApi'
 import { businessTypeMap, priorityMap } from '/@/components/todo/workflowConstants'
-import { mockOrgList, mockUserList } from '/@/components/todo/mockData.js'
 
 const adminInfo = useAdminInfo()
-
-// ── 静态数据 ──────────────────────────────────
-const orgList  = mockOrgList
-const userList = mockUserList
 
 // ── 状态 ──────────────────────────────────────
 const todoList     = ref([])
@@ -227,9 +220,10 @@ const openApproveDrawer = async (row) => {
     businessType:  row.businessType,
     nodeSemantic:  row.nodeSemantic,
     pageCode:      row.pageCode,
+    pageUrl:       row.pageUrl ?? null,
     priority:      row.priority,
     createTime:    row.createTime,
-    requiredSlots: row.requiredSlots  ?? [],
+    isAfterConvergencePoint: row.isAfterConvergencePoint ?? false,
     canReject:     row.canReject      ?? false,
     rejectOptions: row.rejectOptions  ?? [],
   }

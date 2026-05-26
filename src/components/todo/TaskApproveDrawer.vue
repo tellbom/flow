@@ -7,7 +7,7 @@
     :before-close="handleClose"
     class="task-approve-drawer"
   >
-    <!-- ══ 自定义 Header ══ -->
+    <!-- ══ Header ══ -->
     <template #header>
       <div class="drawer-header">
         <!-- 左：标题区 -->
@@ -19,15 +19,15 @@
               size="small" round effect="plain"
             >{{ businessTypeMap[taskInfo?.businessType]?.label || taskInfo?.businessType }}</el-tag>
             <el-tag
+              v-if="!readonly"
               :type="priorityMap[taskInfo?.priority]?.type || ''"
               size="small" round
-              v-if="!readonly"
             >{{ priorityMap[taskInfo?.priority]?.label || '普通' }}</el-tag>
             <span class="header-bid">{{ taskInfo?.businessId }}</span>
           </div>
         </div>
 
-        <!-- 右：操作按钮（审批模式才显示） -->
+        <!-- 右：操作按钮（审批模式）-->
         <div class="header-actions" v-if="!readonly">
           <el-button
             type="success" :icon="CircleCheck"
@@ -50,116 +50,43 @@
       </div>
     </template>
 
-    <!-- ══ 主体内容 ══ -->
+    <!-- ══ 主体 ══ -->
     <div class="drawer-body">
-
-      <!-- ══ 标签页 ══ -->
       <el-tabs v-model="activeTab" class="drawer-tabs">
 
-        <!-- ─── Tab1：审批表单 ─── -->
+        <!-- ─── Tab1：业务表单（iframe）─── -->
         <el-tab-pane label="审批表单" name="form">
-          <div class="tab-pane-content">
+          <div class="tab-iframe-wrap">
 
-            <!-- 业务表单区 -->
-            <component
-              :is="bizFormComponent"
-              ref="approveFormRef"
-              :task-info="taskInfo"
-              :readonly="readonly"
-              :org-list="orgList"
-              :user-list="userList"
+            <!-- iframe 加载中遮罩 -->
+            <div v-if="iframeLoading" class="iframe-loading">
+              <el-icon class="spin"><Loading /></el-icon>
+              <span>加载业务表单…</span>
+            </div>
+
+            <!-- 有 pageUrl：渲染 iframe -->
+            <iframe
+              v-if="taskInfo?.pageUrl"
+              :key="iframeKey"
+              :src="taskInfo.pageUrl"
+              class="task-iframe"
+              :class="{ 'iframe-hidden': iframeLoading }"
+              frameborder="0"
+              allowfullscreen
+              @load="iframeLoading = false"
+              @error="handleIframeError"
             />
 
-            <!-- ── 审批意见（审批模式专属）── -->
-            <template v-if="!readonly">
-              <el-divider content-position="left">
-                <span class="divider-text">审批意见</span>
-              </el-divider>
-              <el-input
-                v-model="approveComment"
-                type="textarea"
-                :rows="3"
-                placeholder="填写审批意见（选填）"
-                maxlength="500"
-                show-word-limit
-                class="comment-input"
-              />
-
-              <!-- ── 流程变量选择区（有变量定义时才渲染）── -->
-              <template v-if="flowVarDefs.length">
-                <el-divider content-position="left">
-                  <span class="divider-text">流程选项</span>
-                </el-divider>
-                <div class="flow-var-section">
-                  <div
-                    v-for="def in flowVarDefs"
-                    :key="def.key"
-                    class="flow-var-item"
-                  >
-                    <div class="flow-var-label">{{ def.label }}</div>
-                    <el-radio-group
-                      v-if="def.component === 'radio'"
-                      v-model="flowVars[def.key]"
-                    >
-                      <el-radio
-                        v-for="opt in def.options"
-                        :key="String(opt.value)"
-                        :value="opt.value"
-                      >{{ opt.label }}</el-radio>
-                    </el-radio-group>
-                    <el-select
-                      v-else-if="def.component === 'select'"
-                      v-model="flowVars[def.key]"
-                      style="width: 100%"
-                    >
-                      <el-option
-                        v-for="opt in def.options"
-                        :key="String(opt.value)"
-                        :label="opt.label"
-                        :value="opt.value"
-                      />
-                    </el-select>
-                  </div>
-                </div>
-              </template>
-
-              <!-- ── 选人区（激活 Slot 列表）── -->
-              <template v-if="activeSlots.length">
-                <el-divider content-position="left">
-                  <span class="divider-text">选择处理人</span>
-                </el-divider>
-                <div class="slot-assignee-section">
-                  <div
-                    v-for="slot in activeSlots"
-                    :key="slot.slotKey"
-                    class="slot-item"
-                  >
-                    <SelectedUserBar
-                      :users="slotSelections[slot.slotKey] || []"
-                      :label="slot.label + (slot.required ? ' *' : '')"
-                      @remove="removeSlotUser(slot.slotKey, $event)"
-                      @click-add="openSlotSelector(slot)"
-                    />
-                    <!-- 推荐候选人（表单组件通过 getSlotCandidates 提供）-->
-                    <DefaultAssigneeBar
-                      v-if="slotCandidates[slot.slotKey]?.length"
-                      :candidates="slotCandidates[slot.slotKey]"
-                      :used-ids="(slotSelections[slot.slotKey] || []).map(u => u.id ?? u.workNo)"
-                      @use-one="useSlotCandidate(slot.slotKey, $event)"
-                      @use-all="useAllSlotCandidates(slot.slotKey)"
-                    />
-                  </div>
-                </div>
-              </template>
-            </template>
-
-            <!-- ── 历史审批记录（只读模式）── -->
-            <template v-else>
-              <el-divider content-position="left">
-                <span class="divider-text">审批记录</span>
-              </el-divider>
-              <ApprovalHistory :records="flowRenderData?.completedRecords || []" />
-            </template>
+            <!-- 无 pageUrl 或加载失败：降级占位 -->
+            <IframeErrorFallback
+              v-if="!taskInfo?.pageUrl || iframeError"
+              :title="iframeError ? '页面加载失败' : '暂无业务表单'"
+              :desc="iframeError
+                ? '业务表单加载出错，请刷新重试或联系管理员'
+                : '当前节点未配置业务表单页面'"
+              :show-retry="iframeError"
+              @retry="reloadIframe"
+            />
 
           </div>
         </el-tab-pane>
@@ -174,19 +101,20 @@
                 <span class="fmb-label">发起人</span>
                 <span class="fmb-val">{{ flowRenderData.createdBy }}</span>
               </span>
-              <span class="fmb-sep"></span>
+              <span class="fmb-sep" />
               <span class="fmb-item">
                 <span class="fmb-label">发起时间</span>
                 <span class="fmb-val">{{ formatDate(flowRenderData.createdTime) }}</span>
               </span>
-              <span class="fmb-sep"></span>
+              <span class="fmb-sep" />
               <span class="fmb-item">
                 <span class="fmb-label">流程状态</span>
-                <StatusTag :status="flowRenderData.status" :show-dot="false" />
+                <el-tag :type="statusTagType(flowRenderData.status)" size="small" round>
+                  {{ statusLabel(flowRenderData.status) }}
+                </el-tag>
               </span>
             </div>
 
-            <!-- ★ 独立流程图子组件 ★ -->
             <FlowGraph
               :data="flowRenderData"
               :loading="flowDataLoading"
@@ -199,7 +127,7 @@
       </el-tabs>
     </div>
 
-    <!-- ══ 驳回对话框 ══ -->
+    <!-- ══ 驳回 Dialog ══ -->
     <el-dialog
       v-model="rejectDialogVisible"
       title="填写驳回原因"
@@ -209,12 +137,7 @@
     >
       <el-form ref="rejectFormRef" :model="rejectForm" :rules="rejectRules" label-position="top">
 
-        <!-- 多个驳回选项时展示单选组 -->
-        <el-form-item
-          v-if="rejectOptions.length > 1"
-          label="驳回方式"
-          prop="rejectCode"
-        >
+        <el-form-item v-if="rejectOptions.length > 1" label="驳回方式" prop="rejectCode">
           <div class="reject-options-list">
             <div
               v-for="opt in rejectOptions"
@@ -234,12 +157,9 @@
           </div>
         </el-form-item>
 
-        <!-- 仅一个选项时静默预选，展示说明提示 -->
         <el-alert
           v-else-if="rejectOptions.length === 1"
-          type="warning"
-          :closable="false"
-          show-icon
+          type="warning" :closable="false" show-icon
           style="margin-bottom: 16px"
         >
           <template #title>{{ rejectOptions[0].label }}</template>
@@ -251,11 +171,9 @@
         <el-form-item label="驳回原因" prop="rejectReason">
           <el-input
             v-model="rejectForm.rejectReason"
-            type="textarea"
-            :rows="4"
+            type="textarea" :rows="4"
             placeholder="请填写驳回原因（必填）"
-            maxlength="500"
-            show-word-limit
+            maxlength="500" show-word-limit
           />
         </el-form-item>
 
@@ -268,7 +186,7 @@
       </template>
     </el-dialog>
 
-    <!-- ══ 转派对话框 ══ -->
+    <!-- ══ 转派 Dialog ══ -->
     <el-dialog
       v-model="reassignDialogVisible"
       title="转派任务"
@@ -300,242 +218,95 @@
       </template>
     </el-dialog>
 
-    <!-- ══ 选人对话框（Slot 选人，Drawer 统一管理）══ -->
-    <el-dialog
-      v-model="selectorVisible"
-      :title="`选择「${activeSelectorSlot?.label || '处理人'}」`"
-      width="860px"
-      append-to-body
-      :close-on-click-modal="false"
-      class="slot-selector-dialog"
-    >
-      <ContactSelector
-        :org-list="orgList"
-        :user-list="userList"
-        :multiple="activeSelectorSlot?.mode === 'multiple'"
-        @confirm="handleSlotSelectorConfirm"
-        @cancel="selectorVisible = false"
-      />
-    </el-dialog>
-
   </el-drawer>
 </template>
 
 <script setup>
-import { ref, computed, watch, shallowRef } from 'vue'
-import {
-  CircleCheck, CircleClose, Switch, View
-} from '@element-plus/icons-vue'
+import { ref, computed, watch } from 'vue'
+import { CircleCheck, CircleClose, Switch, View, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAdminInfo } from '/@/stores/adminInfo'
-import ContactSelector    from '/@/components/ContactSelector.vue'
-import MockApproveForm    from './MockApproveForm.vue'
-import SelectedUserBar    from './SelectedUserBar.vue'
-import DefaultAssigneeBar from './Defaultassigneebar.vue'
-import ApprovalHistory    from './ApprovalHistory.vue'
-import FlowGraph          from './Flowgraph.vue'
-import StatusTag          from '/@/workflow-shared/StatusTag.vue'
-import { formatDate }     from '/@/workflow-shared/workflowUtils.js'
+import ContactSelector       from '/@/components/ContactSelector.vue'
+import FlowGraph             from './Flowgraph.vue'
+import IframeErrorFallback   from './IframeErrorFallback.vue'
 import { completeTask, reassignTask } from '/@/api/workflow/processApi'
+import { statusTagType, statusLabel, formatDate } from '/@/workflow-shared/workflowUtils.js'
 import { businessTypeMap, priorityMap } from '/@/components/todo/workflowConstants'
-import { resolveComponent } from '/@/router/componentRegistry.js'
+import { mockOrgList, mockUserList } from '/@/components/todo/mockData.js'
 
 const adminInfo = useAdminInfo()
 
+// ── Props ──────────────────────────────────────────────────────
 const props = defineProps({
   modelValue:      { type: Boolean, default: false },
   readonly:        { type: Boolean, default: false },
+  /**
+   * taskInfo — 来自 PendingTaskDto，关键字段：
+   *   taskId / taskName / businessId / businessType /
+   *   nodeSemantic / pageUrl / priority / createTime /
+   *   canReject / rejectOptions
+   */
   taskInfo:        { type: Object,  default: null  },
   flowRenderData:  { type: Object,  default: null  },
   flowDataLoading: { type: Boolean, default: false },
   flowDataError:   { type: String,  default: ''    },
-  orgList:         { type: Array,   default: () => [] },
-  userList:        { type: Array,   default: () => [] },
 })
+
 const emit = defineEmits(['update:modelValue', 'approved', 'rejected', 'reassigned'])
 
-const drawerWidth = '860px'
+// ── 转派用临时人员数据（方案B：联调期间用 mock，后续接口替换）──
+const orgList  = mockOrgList
+const userList = mockUserList
 
+// ── Visible ────────────────────────────────────────────────────
+const drawerWidth   = '900px'
 const drawerVisible = computed({
   get: () => props.modelValue,
   set: v => emit('update:modelValue', v),
 })
 
 const activeTab = ref('form')
-const approveComment = ref('')
-const approveFormRef = ref(null)
 
-const bizFormComponent = shallowRef(MockApproveForm)
+// ── iframe 状态 ────────────────────────────────────────────────
+const iframeLoading = ref(true)
+const iframeError   = ref(false)
+// iframeKey 用于重新加载：+1 触发 Vue 重新渲染 iframe
+const iframeKey     = ref(0)
 
+function handleIframeError() {
+  iframeLoading.value = false
+  iframeError.value   = true
+}
+
+function reloadIframe() {
+  iframeError.value   = false
+  iframeLoading.value = true
+  iframeKey.value++
+}
+
+// pageUrl 变化时重置 iframe 状态
 watch(
-  () => props.taskInfo?.pageCode,
-  (pageCode) => {
-    bizFormComponent.value = (!pageCode)
-      ? MockApproveForm
-      : (resolveComponent(pageCode) ?? MockApproveForm)
-  },
-  { immediate: true }
+  () => props.taskInfo?.pageUrl,
+  () => {
+    iframeLoading.value = true
+    iframeError.value   = false
+  }
 )
 
-function evaluateCondition(condition, variables) {
-  if (!condition) return true
-  try {
-    const negate = condition.startsWith('!')
-    const expr   = negate ? condition.slice(1) : condition
-    const sepIdx = expr.indexOf('==') >= 0 ? expr.indexOf('==') : expr.indexOf('=')
-    const sepLen = expr.indexOf('==') >= 0 ? 2 : 1
-    if (sepIdx < 0) {
-      const exists = variables[expr.trim()] != null
-      return negate ? !exists : exists
-    }
-    const varName  = expr.slice(0, sepIdx).trim()
-    const expected = expr.slice(sepIdx + sepLen).trim()
-    const actual   = String(variables[varName] ?? '')
-    const boolMap  = { true: true, false: false }
-    const eLower   = expected.toLowerCase()
-    const aLower   = actual.toLowerCase()
-    const matched  = (eLower in boolMap && aLower in boolMap)
-      ? boolMap[aLower] === boolMap[eLower]
-      : aLower === eLower
-    return negate ? !matched : matched
-  } catch {
-    return true
-  }
-}
-
-const flowVarDefs    = ref([])
-const flowVars       = ref({})
-const slotCandidates = ref({})
-
-watch(approveFormRef, async (formRef) => {
-  flowVarDefs.value    = []
-  flowVars.value       = {}
-  slotCandidates.value = {}
-  if (!formRef) return
-
-  const context = {
-    taskId:       props.taskInfo?.taskId      ?? '',
-    businessId:   props.taskInfo?.businessId  ?? '',
-    nodeSemantic: props.taskInfo?.nodeSemantic ?? '',
-    pageCode:     props.taskInfo?.pageCode     ?? '',
-  }
-  await formRef.initFormData?.(context)
-
-  const defs = await formRef.getFlowVariableDefs?.() ?? []
-  flowVarDefs.value = defs
-  const initial = {}
-  defs.forEach(d => { initial[d.key] = d.defaultValue ?? null })
-  flowVars.value = initial
-
-  const slots = props.taskInfo?.requiredSlots ?? []
-  const candidateResults = await Promise.allSettled(
-    slots.map(async slot => ({
-      slotKey:    slot.slotKey,
-      candidates: await formRef.getSlotCandidates?.(slot.slotKey) ?? [],
-    }))
-  )
-  const candidates = {}
-  candidateResults.forEach(r => {
-    if (r.status === 'fulfilled' && r.value.candidates.length) {
-      candidates[r.value.slotKey] = r.value.candidates
-    }
-  })
-  slotCandidates.value = candidates
-})
-
-const activeSlots = computed(() =>
-  (props.taskInfo?.requiredSlots ?? []).filter(slot =>
-    evaluateCondition(slot.conditionalOn, flowVars.value)
-  )
-)
-
-const slotSelections = ref({})
-
-watch(() => props.taskInfo, () => {
-  const initSel = {}
-  ;(props.taskInfo?.requiredSlots ?? []).forEach(s => { initSel[s.slotKey] = [] })
-  slotSelections.value = initSel
-}, { immediate: true })
-
-watch(activeSlots, (slots) => {
-  const activeKeys = new Set(slots.map(s => s.slotKey))
-  const cleaned = {}
-  Object.keys(slotSelections.value).forEach(key => {
-    cleaned[key] = activeKeys.has(key) ? slotSelections.value[key] : []
-  })
-  slotSelections.value = cleaned
-})
-
-const selectorVisible    = ref(false)
-const activeSelectorSlot = ref(null)
-
-function openSlotSelector(slot) {
-  activeSelectorSlot.value = slot
-  selectorVisible.value    = true
-}
-
-function handleSlotSelectorConfirm(users) {
-  if (!activeSelectorSlot.value) return
-  slotSelections.value[activeSelectorSlot.value.slotKey] = users
-  selectorVisible.value = false
-}
-
-function removeSlotUser(slotKey, user) {
-  slotSelections.value[slotKey] =
-    (slotSelections.value[slotKey] ?? []).filter(u => u.id !== user.id)
-}
-
-function useSlotCandidate(slotKey, candidate) {
-  const current = slotSelections.value[slotKey] ?? []
-  const uid = candidate.id ?? candidate.workNo
-  if (current.some(u => (u.id ?? u.workNo) === uid)) return
-  slotSelections.value[slotKey] = [...current, candidate]
-}
-
-function useAllSlotCandidates(slotKey) {
-  const current  = slotSelections.value[slotKey] ?? []
-  const usedIds  = new Set(current.map(u => u.id ?? u.workNo))
-  const toAdd    = (slotCandidates.value[slotKey] ?? []).filter(
-    c => !usedIds.has(c.id ?? c.workNo)
-  )
-  slotSelections.value[slotKey] = [...current, ...toAdd]
-}
-
-const submitting = ref('')
+// ── 审批：同意 ────────────────────────────────────────────────
+const submitting     = ref('')
+const approveComment = ref('')
 
 const handleApprove = async () => {
-  for (const slot of activeSlots.value) {
-    if (slot.required && !(slotSelections.value[slot.slotKey]?.length)) {
-      ElMessage.warning(`请为「${slot.label}」选择处理人`)
-      return
-    }
-  }
-
-  const nextSlotSelections = activeSlots.value.map(slot => ({
-    slotKey: slot.slotKey,
-    users:   (slotSelections.value[slot.slotKey] ?? []).map(u => u.workNo ?? u.id),
-  }))
-
-  const flowPayload = {
-    taskId:             props.taskInfo?.taskId     ?? '',
-    businessId:         props.taskInfo?.businessId ?? '',
-    action:             1,
-    comment:            approveComment.value,
-    nextSlotSelections,
-    businessVariables:  { ...flowVars.value },
-  }
-
   submitting.value = 'approve'
   try {
-    const ok = await approveFormRef.value?.submitBusiness?.(flowPayload)
-    if (ok === false) return
     await completeTask({
-      businessId: props.taskInfo.businessId,
-      taskId: props.taskInfo.taskId,
-      action: 1,
-      comment: approveComment.value,
-      nextSlotSelections,
-      businessVariables: { ...flowVars.value },
+      businessId:          props.taskInfo.businessId,
+      taskId:              props.taskInfo.taskId,
+      action:              1,
+      comment:             approveComment.value || undefined,
+      nextSlotSelections:  [],   // 全自动模式：选人由 assigneeContract 后端注入
+      businessVariables:   {},
     })
     ElMessage.success('审批成功')
     emit('approved')
@@ -545,8 +316,8 @@ const handleApprove = async () => {
   }
 }
 
-const rejectOptions = computed(() => props.taskInfo?.rejectOptions ?? [])
-
+// ── 审批：驳回 ────────────────────────────────────────────────
+const rejectOptions       = computed(() => props.taskInfo?.rejectOptions ?? [])
 const rejectDialogVisible = ref(false)
 const rejectFormRef       = ref(null)
 const rejectForm          = ref({ rejectCode: '', rejectReason: '' })
@@ -560,34 +331,22 @@ function openRejectDialog() {
     ? rejectOptions.value[0].rejectCode
     : ''
   rejectForm.value.rejectReason = ''
-  rejectDialogVisible.value = true
+  rejectDialogVisible.value     = true
 }
 
 const handleReject = async () => {
   await rejectFormRef.value?.validate()
-
-  const rejectPayload = {
-    taskId:             props.taskInfo?.taskId     ?? '',
-    businessId:         props.taskInfo?.businessId ?? '',
-    action:             2,
-    rejectCode:         rejectForm.value.rejectCode,
-    rejectReason:       rejectForm.value.rejectReason,
-    comment:            rejectForm.value.rejectReason,
-    nextSlotSelections: [],
-    businessVariables:  {},
-  }
-
   submitting.value = 'reject'
   try {
-    const ok = await approveFormRef.value?.submitBusiness?.(rejectPayload)
-    if (ok === false) return
     await completeTask({
-      businessId: props.taskInfo.businessId,
-      taskId: props.taskInfo.taskId,
-      action: 2,
-      rejectCode: rejectForm.value.rejectCode,
-      rejectReason: rejectForm.value.rejectReason,
-      comment: rejectForm.value.rejectReason,
+      businessId:         props.taskInfo.businessId,
+      taskId:             props.taskInfo.taskId,
+      action:             2,
+      rejectCode:         rejectForm.value.rejectCode,
+      rejectReason:       rejectForm.value.rejectReason,
+      comment:            rejectForm.value.rejectReason,
+      nextSlotSelections: [],
+      businessVariables:  {},
     })
     ElMessage.success('已驳回')
     rejectDialogVisible.value = false
@@ -598,6 +357,7 @@ const handleReject = async () => {
   }
 }
 
+// ── 转派 ──────────────────────────────────────────────────────
 const reassignDialogVisible = ref(false)
 const reassignTarget        = ref(null)
 
@@ -624,23 +384,21 @@ const handleReassignSubmit = async () => {
   }
 }
 
+// ── 关闭重置 ──────────────────────────────────────────────────
 const handleClose = (done) => {
   approveComment.value          = ''
   rejectForm.value.rejectCode   = ''
   rejectForm.value.rejectReason = ''
-  flowVarDefs.value             = []
-  flowVars.value                = {}
-  slotSelections.value          = {}
-  slotCandidates.value          = {}
-  selectorVisible.value         = false
-  activeSelectorSlot.value      = null
   reassignTarget.value          = null
+  reassignDialogVisible.value   = false
+  iframeLoading.value           = true
+  iframeError.value             = false
   activeTab.value               = 'form'
   done()
 }
-
 </script>
 
+<!-- ── 全局：Drawer 布局约束 ── -->
 <style>
 .task-approve-drawer {
   top: 48px !important;
@@ -649,7 +407,7 @@ const handleClose = (done) => {
 </style>
 
 <style scoped>
-/* ── 抽屉整体 ── */
+/* ── Drawer 结构 ── */
 :deep(.el-drawer__header) {
   padding: 0;
   margin-bottom: 0;
@@ -679,7 +437,7 @@ const handleClose = (done) => {
   font-weight: var(--wf-font-weight-bold);
   color: var(--wf-ink);
   margin-bottom: var(--wf-space-6);
-  letter-spacing: 0;
+  letter-spacing: -0.3px;
 }
 
 .header-meta {
@@ -733,12 +491,13 @@ const handleClose = (done) => {
 
 :deep(.drawer-tabs > .el-tabs__content) {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 0;
 }
 
-:deep(.drawer-tabs .el-tab-pane)   { height: 100%; }
-:deep(.drawer-tabs .el-tabs__item) { font-size: var(--wf-font-md); font-weight: var(--wf-font-weight-medium); }
+:deep(.drawer-tabs .el-tab-pane) {
+  height: 100%;
+}
 
 :deep(.drawer-tabs .el-tabs__item.is-active) {
   color: var(--wf-primary);
@@ -749,121 +508,56 @@ const handleClose = (done) => {
   background: var(--wf-primary);
 }
 
-.tab-pane-content { padding: var(--wf-space-20); }
-
-/* ── 审批意见 ── */
-.divider-text {
-  font-size: var(--wf-font-sm);
-  color: var(--wf-ink-3);
-  font-weight: var(--wf-font-weight-semibold);
-  letter-spacing: 0.5px;
+/* ── iframe Tab 容器 ── */
+.tab-iframe-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--wf-bg);
 }
 
-:deep(.el-divider__text) { background: transparent; }
-
-.comment-input { margin-top: var(--wf-space-4); }
-
-:deep(.comment-input .el-textarea__inner) {
-  border-radius: var(--wf-radius-md);
-}
-
-/* ── 流程变量选择区 ── */
-.flow-var-section {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-top: var(--wf-space-4);
-}
-
-.flow-var-item  { display: flex; flex-direction: column; gap: var(--wf-space-6); }
-.flow-var-label {
-  font-size: var(--wf-font-sm);
-  color: var(--wf-ink-3);
-  font-weight: var(--wf-font-weight-semibold);
-  letter-spacing: 0.3px;
-}
-
-/* ── 选人区 ── */
-.slot-assignee-section {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-top: var(--wf-space-4);
-}
-
-.slot-item { display: flex; flex-direction: column; gap: var(--wf-space-4); }
-
-/* ── 对话框 ── */
-:deep(.reassign-dialog .el-dialog__body)      { padding: 12px 20px; }
-:deep(.reassign-dialog .el-dialog)            { border-radius: var(--wf-radius-lg); }
-:deep(.slot-selector-dialog .el-dialog)       { border-radius: var(--wf-radius-lg); }
-
-.reassign-tip { margin-bottom: var(--wf-space-12); }
-
-/* ── 驳回选项列表 ── */
-.reject-options-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--wf-space-8);
-}
-
-.reject-option-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 14px;
-  border: 1.5px solid var(--wf-border);
-  border-radius: var(--wf-radius-md);
-  cursor: pointer;
+/* iframe 本体：撑满容器，无边框，无滚动条（业务页面自行处理） */
+.task-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
   background: var(--wf-canvas);
-  transition: border-color var(--wf-transition-fast),
-              background   var(--wf-transition-fast);
 }
 
-.reject-option-item:hover {
-  border-color: var(--wf-ink-disabled);
-  background: var(--wf-bg-card);
+/* iframe 加载中时隐藏（避免白屏闪烁），但保持渲染以触发 onload */
+.task-iframe.iframe-hidden {
+  visibility: hidden;
+  position: absolute;
 }
 
-.reject-option-item.is-selected {
-  border-color: var(--wf-primary);
-  background: var(--wf-primary-light);
-}
-
-.ro-radio {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1.5px solid var(--wf-ink-disabled);
-  flex-shrink: 0;
-  margin-top: 2px;
+/* ── iframe 加载中遮罩 ── */
+.iframe-loading {
+  position: absolute;
+  inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  transition: border-color var(--wf-transition-fast);
+  gap: var(--wf-space-12);
+  background: var(--wf-bg);
+  font-size: var(--wf-font-base);
+  color: var(--wf-ink-3);
+  z-index: 10;
 }
 
-.reject-option-item.is-selected .ro-radio {
-  border-color: var(--wf-primary);
-}
-
-.ro-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--wf-primary);
-}
-
-.ro-info  { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.ro-label { font-size: var(--wf-font-base); font-weight: var(--wf-font-weight-semibold); color: var(--wf-ink); }
-.ro-desc  { font-size: var(--wf-font-xs); color: var(--wf-ink-3); }
+.spin { animation: rotate 0.7s linear infinite; font-size: 24px; color: var(--wf-primary); }
+@keyframes rotate { to { transform: rotate(360deg); } }
 
 /* ── 流程进度 Tab ── */
+.tab-pane-content { padding: var(--wf-space-20); }
+
 .flow-tab-content {
-  padding: var(--wf-space-16) var(--wf-space-20);
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow-y: auto;
+  height: 100%;
 }
 
 .flow-meta-bar {
@@ -882,6 +576,41 @@ const handleClose = (done) => {
 .fmb-item  { display: flex; align-items: center; gap: 7px; }
 .fmb-label { color: var(--wf-ink-3); white-space: nowrap; }
 .fmb-val   { color: var(--wf-ink); font-weight: var(--wf-font-weight-semibold); }
-
 .fmb-sep   { width: 1px; height: 14px; background: var(--wf-border); }
+
+/* ── 驳回选项 ── */
+:deep(.reassign-dialog .el-dialog) { border-radius: var(--wf-radius-xl); }
+
+.reject-options-list { display: flex; flex-direction: column; gap: var(--wf-space-8); }
+
+.reject-option-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--wf-border);
+  border-radius: var(--wf-radius-md);
+  cursor: pointer;
+  background: var(--wf-canvas);
+  transition: border-color var(--wf-transition-fast), background var(--wf-transition-fast);
+}
+.reject-option-item:hover      { border-color: var(--wf-ink-disabled); background: var(--wf-bg-card); }
+.reject-option-item.is-selected { border-color: var(--wf-primary); background: var(--wf-primary-light); }
+
+.ro-radio {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--wf-ink-disabled);
+  flex-shrink: 0; margin-top: 2px;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color var(--wf-transition-fast);
+}
+.reject-option-item.is-selected .ro-radio { border-color: var(--wf-primary); }
+.ro-dot   { width: 8px; height: 8px; border-radius: 50%; background: var(--wf-primary); }
+.ro-info  { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.ro-label { font-size: var(--wf-font-base); font-weight: var(--wf-font-weight-semibold); color: var(--wf-ink); }
+.ro-desc  { font-size: var(--wf-font-xs); color: var(--wf-ink-3); }
+
+/* ── 转派 ── */
+.reassign-tip { margin-bottom: var(--wf-space-12); }
 </style>
