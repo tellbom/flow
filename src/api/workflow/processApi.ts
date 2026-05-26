@@ -5,18 +5,22 @@
  * 路径建议：src/api/workflow/processApi.ts
  * 依赖：./processAxios
  *
- * PATCH-R05 变更（对齐 C# DTO，清理旧机制残留）：
+ * PATCH-R05 变更（对齐 C# DTO）+ PATCH-S01 变更（推荐确认模式恢复）：
  *
  * DTO 修正：
  *   PendingTaskDto
  *     + pageUrl: string | null        — iframe 直用 URL，后端已拼好上下文参数
  *     + isAfterConvergencePoint: bool — 是否过不可撤回节点
- *     - requiredSlots 移除（后端注释"前端可以忽略"，新架构不需要）
+ *     + roleKey: string
+ *     + requiredSlots: SlotDefinition[]
+ *     + recommendedUsers: Record<string,string[]>
+ *     + restrictToRecommended: Record<string,boolean>
  *     createTime 字段名与后端保持一致（C# DateTime → JSON string）
  *
  *   CompleteTaskRequest
- *     nextSlotSelections 改为可选且默认空数组（全自动架构不传）
- *     businessVariables  改为可选（全自动架构不传）
+ *     taskId 改为必传
+ *     nextSlotSelections 改为必传（无槽位传 []）
+ *     businessVariables 保持可选
  *
  *   AuditRecordDto
  *     + pageCode: string              — 节点页面编码快照（供历史 iframe 拼 URL）
@@ -37,8 +41,7 @@
  *     + walkedNodeIds: string[]
  *     移除旧 bpmnXml（FlowRenderDto 无此字段）
  *
- *   移除（前端全自动架构不再使用）：
- *     SlotDefinition（选人由 assigneeContract 后端注入，前端不感知）
+ *   保持移除：
  *     AssigneeContract / RoleAssignment / LoopAssignment / LoopItem
  *     AuditHistoryItem（getAuditHistory 复用 AuditRecordDto，无需独立类型）
  */
@@ -90,6 +93,42 @@ export interface NodeConfigDetail {
 }
 
 // ══════════════════════════════════════════════════════════════
+//  选人槽位定义（PATCH-S01 恢复）
+//  对齐 slotConfig slot 字段（README §1.1）
+//  注意：slot 级无 roleKey，roleKey 在 PendingTaskDto 根级
+// ══════════════════════════════════════════════════════════════
+
+export interface SlotDefinition {
+  /** 全流程唯一槽位标识 */
+  slotKey:               string
+
+  /** 前端展示标签，如"巡察办审核人" */
+  label:                 string
+
+  /** 'single' | 'multiple' */
+  mode:                  string
+
+  /** 对应 Flowable 流程变量名 */
+  variableName:          string
+
+  /** 是否必填（至少选 1 人） */
+  required:              boolean
+
+  /**
+   * 条件表达式，满足时才激活此槽位
+   * 格式：'varName==value' 或 '!varName'
+   * 与后端 SlotVariableConverter.EvaluateCondition 对齐
+   */
+  conditionalOn?:        string
+
+  /**
+   * true = 前端限制可选范围为推荐人
+   * 后端只审计不拦截（hasOutOfRecommendedRange 记录越界）
+   */
+  restrictToRecommended: boolean
+}
+
+// ══════════════════════════════════════════════════════════════
 //  驳回选项（PendingTaskDto / NodeConfigDetail 共用）
 // ══════════════════════════════════════════════════════════════
 
@@ -124,16 +163,26 @@ export interface PendingTaskDto {
   nodeSemantic: string
 
   /**
+   * 节点级角色 Key（PATCH-S01 新增）
+   * 用于在 recommendedUsers 中查找当前节点的推荐人。
+   *
+   * Fallback 规则（README §5.2）：
+   *   recommendedUsers[task.roleKey] ?? recommendedUsers[slot.slotKey] ?? []
+   *
+   * 注：slot 级无 roleKey，只有 PendingTaskDto 根级有此字段。
+   */
+  roleKey:      string
+
+  /**
    * 原始页面配置编码
    * 对 iframe 流程：为业务系统 URL，流程中心拼好 pageUrl
-   * 对组件化流程：为组件编码（当前架构已废弃组件化模式）
    */
   pageCode:     string
 
   /**
    * iframe 直用的完整 URL
    * 后端已追加 businessId / taskId / businessType / nodeId 等上下文参数
-   * null 表示 PageCode 不是 URL（当前架构下不应出现此情况）
+   * null 表示 PageCode 不是 URL
    */
   pageUrl:      string | null
 
@@ -152,7 +201,30 @@ export interface PendingTaskDto {
   /** 驳回配置列表 */
   rejectOptions: RejectOption[]
 
-  // requiredSlots 已移除 — 后端注释"前端可以忽略"，全自动架构不需要
+  /**
+   * 当前节点需要填写的选人槽位定义列表（PATCH-S01 恢复）
+   * 推荐确认模式下前端据此渲染 SelectedUserBar + DefaultAssigneeBar
+   * conditionalOn 不为空的槽位需经 evaluateCondition 后才激活
+   */
+  requiredSlots: SlotDefinition[]
+
+  /**
+   * 推荐人（PATCH-S01 新增）
+   * key = roleKey（节点级角色 Key）
+   * value = 推荐人工号数组
+   *
+   * 前端查推荐候选人时使用 fallback 规则：
+   *   recommendedUsers[task.roleKey] ?? recommendedUsers[slot.slotKey] ?? []
+   */
+  recommendedUsers: Record<string, string[]>
+
+  /**
+   * 选人范围限制标志（PATCH-S01 新增）
+   * key = slotKey
+   * value = true 表示该槽位只能从推荐人中选择
+   * 后端只审计不拦截，前端负责交互约束
+   */
+  restrictToRecommended: Record<string, boolean>
 }
 
 export interface GetPendingTasksParams {
@@ -171,11 +243,11 @@ export interface CompleteTaskRequest {
   businessId:   string
 
   /**
-   * Flowable Task ID
-   * 并行节点时必传，用于精确指定完成哪个任务
-   * 串行节点可不传（后端自动定位）
+   * Flowable Task ID（PATCH-S01 改为必传）
+   * 串行节点也必传，统一策略避免遗漏并行场景
+   * 来源：PendingTaskDto.taskId
    */
-  taskId?:      string
+  taskId:       string
 
   /** 1=通过  2=驳回 */
   action:       1 | 2
@@ -184,15 +256,16 @@ export interface CompleteTaskRequest {
   comment?:     string
 
   /**
-   * 下一节点处理人选择
-   * 全自动架构：传空数组 []（人员由 assigneeContract 后端注入）
-   * 保留字段兼容业务系统仍有手动选人的边缘场景
+   * 下一节点处理人选择（PATCH-S01 改为必传）
+   * 推荐确认模式：由前端 SelectedUserBar 收集后传入
+   * 无槽位节点：传空数组 []
+   * NextSlotSelections 是 Flowable 中唯一最终生效人员来源
    */
-  nextSlotSelections?: Array<{ slotKey: string; users: string[] }>
+  nextSlotSelections: Array<{ slotKey: string; users: string[] }>
 
   /**
-   * 业务变量
-   * 全自动架构：传空对象 {} 或不传
+   * 业务变量（选填）
+   * conditionalOn 网关条件变量在此传入
    */
   businessVariables?:  Record<string, any>
 
@@ -541,7 +614,7 @@ export function getPendingTasks(params: GetPendingTasksParams = {}) {
 /**
  * POST /api/tasks/complete
  * action=1 通过，action=2 驳回
- * 全自动架构：nextSlotSelections=[] / businessVariables={}
+ * 推荐确认模式：nextSlotSelections 必传，无槽位节点传 []
  */
 export function completeTask(data: CompleteTaskRequest) {
   return createProcessRequest<null>(
