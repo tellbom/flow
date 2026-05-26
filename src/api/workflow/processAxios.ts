@@ -43,6 +43,8 @@ export interface ProcessRequestOptions {
 // ──────────────────────────────────────────────────────────────
 
 const getProcessBaseUrl = (): string => {
+  if (import.meta.env.DEV) return '/process-api'
+
   const val = import.meta.env.VITE_PROCESS_BASE_URL as string
   if (!val || val === 'getCurrentDomain') {
     return window.location.protocol + '//' + window.location.host

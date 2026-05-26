@@ -147,7 +147,7 @@
           <!-- 组件路径（tab 时显示） -->
           <el-form-item
             label="组件路径 (component)"
-            v-if="formData.type === 'menu' || formData.menuType === 'tab'"
+            v-if="formData.type === 'menu'"
           >
             <el-input
               v-model="formData.component"
