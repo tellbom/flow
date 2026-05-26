@@ -150,6 +150,7 @@ import {
   Warning,
 } from "@element-plus/icons-vue"
 import { ElMessage, ElMessageBox } from "element-plus"
+import { useAdminInfo } from "/@/stores/adminInfo"
 import Commonsearch         from "/@/components/claudetable/Commonsearch.vue"
 import Commontable          from "/@/components/claudetable/Commontable.vue"
 import ApplicationViewDrawer from "/@/components/todo/ApplicationViewDrawer.vue"
@@ -161,6 +162,8 @@ import {
   terminateProcess,
 } from "/@/api/workflow/processApi"
 import { businessTypeMap } from "/@/components/todo/workflowConstants"
+
+const adminInfo = useAdminInfo()
 
 // ── 状态 ──────────────────────────────────────
 const appList           = ref([])
@@ -279,6 +282,8 @@ async function loadAppList() {
   loading.value = true
   try {
     const result = await getProcessList({
+      createdBy: adminInfo.userid || undefined,
+      businessId: searchParams.value.keyword || undefined,
       businessType: searchParams.value.businessType || undefined,
       status: activeStatusFilter.value || searchParams.value.status || undefined,
       pageIndex: pagination.pageIndex,

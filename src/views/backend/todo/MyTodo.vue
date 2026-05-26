@@ -228,7 +228,7 @@ const openApproveDrawer = async (row) => {
     canReject:     row.canReject      ?? false,
     rejectOptions: row.rejectOptions  ?? [],
     requiredSlots: row.requiredSlots  ?? [],
-    recommendedUsers: row.recommendedUsers ?? {},
+    slotRecommendedUsers: row.slotRecommendedUsers ?? {},
     restrictToRecommended: row.restrictToRecommended ?? {},
   }
   drawerVisible.value = true

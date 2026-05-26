@@ -82,10 +82,36 @@
             </div>
 
             <!-- ── 选人区（有激活 slot 时渲染）── -->
-            <div v-if="!readonly && activeSlots.length" class="slot-section">
+            <div v-if="!readonly && (gatewayGroups.length || activeSlots.length)" class="slot-section">
               <el-divider content-position="left">
                 <span class="divider-text">下一节点处理人</span>
               </el-divider>
+
+              <div
+                v-for="group in gatewayGroups"
+                :key="group.variable"
+                class="gateway-choice"
+              >
+                <div class="gateway-choice__head">
+                  <span class="gateway-choice__title">{{ group.label }}</span>
+                  <span class="gateway-choice__hint">请选择后查看对应推荐人员</span>
+                </div>
+                <div class="gateway-choice__options">
+                  <button
+                    v-for="option in group.options"
+                    :key="option.value"
+                    type="button"
+                    class="gateway-choice__option"
+                    :class="{ 'is-active': String(flowVars[group.variable] ?? '') === option.value }"
+                    @click="selectGatewayOption(group.variable, option.value)"
+                  >
+                    <span class="gateway-choice__option-main">{{ option.label }}</span>
+                    <span v-if="option.slotLabels.length" class="gateway-choice__option-sub">
+                      {{ option.slotLabels.join(' / ') }}
+                    </span>
+                  </button>
+                </div>
+              </div>
 
               <div
                 v-for="slot in activeSlots"
@@ -277,7 +303,7 @@ const props = defineProps({
    *   taskId / taskName / businessId / businessType / nodeSemantic
    *   roleKey / pageCode / pageUrl / priority / createTime
    *   isAfterConvergencePoint / canReject / rejectOptions
-   *   requiredSlots / recommendedUsers / restrictToRecommended
+   *   requiredSlots / slotRecommendedUsers / restrictToRecommended
    */
   taskInfo:        { type: Object,  default: null  },
   flowRenderData:  { type: Object,  default: null  },
@@ -323,7 +349,7 @@ watch(() => props.taskInfo?.pageUrl, () => {
 
 // ── iframe 高度：有选人区时压缩，无选人区时撑满 ──────────────
 const iframeHeight = computed(() =>
-  activeSlots.value.length ? '500px' : '100%'
+  (gatewayGroups.value.length || activeSlots.value.length) ? '500px' : '100%'
 )
 
 // ══════════════════════════════════════════════════════════════
@@ -359,6 +385,77 @@ function evaluateCondition(condition, variables) {
 // 业务变量（网关条件用，当前页面无输入入口，预留扩展）
 const flowVars = ref({})
 
+function parseGatewayCondition(condition) {
+  if (!condition) return null
+  const expr  = condition.startsWith('!') ? condition.slice(1) : condition
+  const eqIdx = expr.indexOf('==') >= 0 ? expr.indexOf('==') : expr.indexOf('=')
+  const eqLen = expr.indexOf('==') >= 0 ? 2 : 1
+  if (eqIdx < 0) return null
+
+  const variable = expr.slice(0, eqIdx).trim()
+  const value    = expr.slice(eqIdx + eqLen).trim()
+  if (!variable || !value) return null
+  return { variable, value }
+}
+
+function gatewayValueLabel(value) {
+  const normalized = String(value).toLowerCase()
+  if (normalized === 'true') return '是'
+  if (normalized === 'false') return '否'
+  return String(value)
+}
+
+function coerceGatewayValue(value) {
+  const normalized = String(value).toLowerCase()
+  if (normalized === 'true') return true
+  if (normalized === 'false') return false
+  return value
+}
+
+const gatewayGroups = computed(() => {
+  const groupMap = new Map()
+
+  ;(props.taskInfo?.requiredSlots ?? []).forEach(slot => {
+    const parsed = parseGatewayCondition(slot.conditionalOn)
+    if (!parsed) return
+
+    if (!groupMap.has(parsed.variable)) {
+      groupMap.set(parsed.variable, {
+        variable: parsed.variable,
+        label: `分支选择：${parsed.variable}`,
+        options: new Map(),
+      })
+    }
+
+    const group = groupMap.get(parsed.variable)
+    if (!group.options.has(parsed.value)) {
+      group.options.set(parsed.value, {
+        value: parsed.value,
+        label: gatewayValueLabel(parsed.value),
+        slotLabels: [],
+      })
+    }
+
+    const option = group.options.get(parsed.value)
+    const slotLabel = slot.label || slot.slotKey
+    if (slotLabel && !option.slotLabels.includes(slotLabel)) {
+      option.slotLabels.push(slotLabel)
+    }
+  })
+
+  return Array.from(groupMap.values()).map(group => ({
+    ...group,
+    options: Array.from(group.options.values()),
+  }))
+})
+
+function selectGatewayOption(variable, value) {
+  flowVars.value = {
+    ...flowVars.value,
+    [variable]: coerceGatewayValue(value),
+  }
+}
+
 // 激活槽位（过滤 conditionalOn）
 const activeSlots = computed(() =>
   (props.taskInfo?.requiredSlots ?? [])
@@ -373,13 +470,12 @@ const activeSlots = computed(() =>
 )
 
 // ── 推荐候选人查找 ────────────────────────────────────────────
-// Fallback 规则（README §5.2）：
-//   recommendedUsers[task.roleKey] ?? recommendedUsers[slot.slotKey] ?? []
+// V1.3 规则：
+//   slotRecommendedUsers[slot.slotKey] ?? []
 function getSlotCandidates(slot) {
-  const rec    = props.taskInfo?.recommendedUsers ?? {}
-  const taskRk = props.taskInfo?.roleKey          ?? ''
+  const rec    = props.taskInfo?.slotRecommendedUsers ?? {}
   // 工号数组
-  const rawIds = rec[taskRk] ?? rec[slot.slotKey] ?? []
+  const rawIds = rec[slot.slotKey] ?? []
   const ids = Array.isArray(rawIds) ? rawIds : []
   // 优先映射本地用户对象；联调真实工号不在 mock 中时保留工号占位，避免推荐区空白。
   return ids
@@ -465,6 +561,13 @@ const submitting     = ref('')
 const approveComment = ref('')
 
 const handleApprove = async () => {
+  for (const group of gatewayGroups.value) {
+    if (flowVars.value[group.variable] == null || flowVars.value[group.variable] === '') {
+      ElMessage.warning(`请选择「${group.label}」`)
+      return
+    }
+  }
+
   // 点同意时校验（PATCH-S01 §5 规则）
   for (const slot of activeSlots.value) {
     const selected = slotSelections.value[slot.slotKey] ?? []
@@ -725,4 +828,85 @@ const handleClose = (done) => {
 .ro-label { font-size: var(--wf-font-base); font-weight: var(--wf-font-weight-semibold); color: var(--wf-ink); }
 .ro-desc  { font-size: var(--wf-font-xs); color: var(--wf-ink-3); }
 .reassign-tip { margin-bottom: var(--wf-space-12); }
+
+.gateway-choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wf-space-8);
+  padding: var(--wf-space-12);
+  border: 1px solid var(--wf-border);
+  border-radius: var(--wf-radius-md);
+  background: var(--wf-bg-section);
+}
+
+.gateway-choice__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wf-space-12);
+}
+
+.gateway-choice__title {
+  font-size: var(--wf-font-sm);
+  font-weight: var(--wf-font-weight-bold);
+  color: var(--wf-ink);
+}
+
+.gateway-choice__hint {
+  font-size: var(--wf-font-xs);
+  color: var(--wf-ink-3);
+  white-space: nowrap;
+}
+
+.gateway-choice__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--wf-space-8);
+}
+
+.gateway-choice__option {
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--wf-space-8) var(--wf-space-12);
+  border: 1px solid var(--wf-border);
+  border-radius: var(--wf-radius-sm);
+  background: var(--wf-canvas);
+  color: var(--wf-ink);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: border-color var(--wf-transition-fast),
+              background var(--wf-transition-fast),
+              box-shadow var(--wf-transition-fast);
+}
+
+.gateway-choice__option:hover {
+  border-color: var(--wf-primary-border);
+  background: var(--wf-primary-light);
+}
+
+.gateway-choice__option.is-active {
+  border-color: var(--wf-primary);
+  background: var(--wf-primary-light);
+  box-shadow: 0 0 0 2px var(--wf-primary-border);
+}
+
+.gateway-choice__option-main {
+  font-size: var(--wf-font-base);
+  font-weight: var(--wf-font-weight-bold);
+  line-height: var(--wf-line-height-tight);
+}
+
+.gateway-choice__option-sub {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--wf-font-xs);
+  color: var(--wf-ink-3);
+}
 </style>

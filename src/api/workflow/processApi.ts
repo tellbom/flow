@@ -13,7 +13,7 @@
  *     + isAfterConvergencePoint: bool — 是否过不可撤回节点
  *     + roleKey: string
  *     + requiredSlots: SlotDefinition[]
- *     + recommendedUsers: Record<string,string[]>
+ *     + slotRecommendedUsers: Record<string,string[]>
  *     + restrictToRecommended: Record<string,boolean>
  *     createTime 字段名与后端保持一致（C# DateTime → JSON string）
  *
@@ -91,17 +91,21 @@ export interface NodeConfigDetail {
   rejectOptions:     RejectOption[]
   isRejectTarget:    boolean
   rejectCode:        string
+  slots?:            SlotDefinition[]
 }
 
 // ══════════════════════════════════════════════════════════════
 //  选人槽位定义（PATCH-S01 恢复）
 //  对齐 slotConfig slot 字段（README §1.1）
-//  注意：slot 级无 roleKey，roleKey 在 PendingTaskDto 根级
+//  V1.3：slotKey / roleKey / variableName 三键分离
 // ══════════════════════════════════════════════════════════════
 
 export interface SlotDefinition {
   /** 全流程唯一槽位标识 */
   slotKey:               string
+
+  /** 该 slot 的推荐池来源角色 Key */
+  roleKey:               string
 
   /** 前端展示标签，如"巡察办审核人" */
   label:                 string
@@ -165,12 +169,9 @@ export interface PendingTaskDto {
 
   /**
    * 节点级角色 Key（PATCH-S01 新增）
-   * 用于在 recommendedUsers 中查找当前节点的推荐人。
+   * 当前节点处理角色 Key。
    *
-   * Fallback 规则（README §5.2）：
-   *   recommendedUsers[task.roleKey] ?? recommendedUsers[slot.slotKey] ?? []
-   *
-   * 注：slot 级无 roleKey，只有 PendingTaskDto 根级有此字段。
+   * V1.3：仅表示“谁处理当前节点”，不能用于下游 slot 推荐人组装。
    */
   roleKey:      string
 
@@ -210,14 +211,12 @@ export interface PendingTaskDto {
   requiredSlots: SlotDefinition[]
 
   /**
-   * 推荐人（PATCH-S01 新增）
-   * key = roleKey（节点级角色 Key）
+   * 下一节点选人池。
+   * key = slotKey
    * value = 推荐人工号数组
-   *
-   * 前端查推荐候选人时使用 fallback 规则：
-   *   recommendedUsers[task.roleKey] ?? recommendedUsers[slot.slotKey] ?? []
+   * V1.3 固定读取规则：slotRecommendedUsers[slot.slotKey] ?? []
    */
-  recommendedUsers: Record<string, string[]>
+  slotRecommendedUsers: Record<string, string[]>
 
   /**
    * 选人范围限制标志（PATCH-S01 新增）
@@ -305,12 +304,27 @@ export interface StartProcessCallback {
   timeoutSeconds?: number
 }
 
+export interface SlotSelection {
+  slotKey: string
+  users:   string[]
+}
+
+export interface AssigneeContractRole {
+  roleKey: string
+  users:   string[]
+}
+
+export interface AssigneeContract {
+  roles: AssigneeContractRole[]
+}
+
 export interface StartProcessRequest {
   businessType:       string
   businessId:         string
+  initialSlotSelections?: SlotSelection[]
+  assigneeContract?:  AssigneeContract
   businessVariables?: Record<string, any>
   callback:           StartProcessCallback
-  // assigneeContract / loopAssignments 等由业务系统后端传入，前端不构造
 }
 
 export interface StartProcessResponse {
@@ -347,7 +361,7 @@ export interface CurrentNodeDto {
   assignee:      string | null
   candidateUsers: string[]
   createTime:    string
-  recommendedUsers:      Record<string, string[]>
+  slotRecommendedUsers:  Record<string, string[]>
   restrictToRecommended: Record<string, boolean>
 }
 
@@ -554,10 +568,18 @@ export interface ProcessListItem {
 }
 
 export interface GetProcessListParams {
+  businessId?:   string
+  BusinessId?:   string
   businessType?: string
+  BusinessType?: string
   status?:       string
+  Status?:       string
+  createdBy?:    string
+  CreatedBy?:    string
   pageIndex?:    number
+  PageIndex?:    number
   pageSize?:     number
+  PageSize?:     number
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -686,9 +708,18 @@ export function getProcessStatus(businessId: string) {
 
 /** GET /api/processes */
 export function getProcessList(params: GetProcessListParams = {}) {
+  const normalizedParams = {
+    BusinessId:   params.BusinessId   ?? params.businessId,
+    BusinessType: params.BusinessType ?? params.businessType,
+    Status:       params.Status       ?? params.status,
+    CreatedBy:    params.CreatedBy    ?? params.createdBy,
+    PageIndex:    params.PageIndex    ?? params.pageIndex,
+    PageSize:     params.PageSize     ?? params.pageSize,
+  }
+
   return createProcessRequest<PageResult<ProcessListItem>>({
     url:    '/api/processes',
     method: 'GET',
-    params,
+    params: normalizedParams,
   })
 }
