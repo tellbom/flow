@@ -2,9 +2,9 @@
  * @Author: fzq
  * @Date: 2024-11-30 13:00:00
  * @LastEditors: fzq
- * @LastEditTime: 2026-05-14 14:59:02
+ * @LastEditTime: 2026-05-26 09:12:27
  * @Description: 
- * @FilePath: \flow\vite.config.ts
+ * @FilePath: \web\vite.config.ts
  */
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
@@ -43,7 +43,7 @@ const viteConfig = ({ mode }: ConfigEnv): UserConfig => {
                     rewrite: (path) => path.replace(/^\/rbacServer/, ''),
                 },
                 '/process-api': {
-                    target: VITE_PROCESS_PROXY_TARGET || 'http://localhost:5000',
+                    target: VITE_PROCESS_PROXY_TARGET,
                     changeOrigin: true,
                     rewrite: (path) => path.replace(/^\/process-api/, ''),
                 },
