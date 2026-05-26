@@ -61,7 +61,7 @@
         </div>
 
         <!-- 无节点 -->
-        <div v-else-if="!nodes.length" class="avd-empty">
+        <div v-else-if="!resolvedNodes.length" class="avd-empty">
           <el-icon><Tickets /></el-icon>
           <span>暂无节点数据</span>
         </div>
@@ -74,7 +74,7 @@
           type="card"
         >
           <el-tab-pane
-            v-for="node in nodes"
+            v-for="node in resolvedNodes"
             :key="node.nodeKey"
             :name="node.nodeKey"
           >
@@ -120,8 +120,17 @@
                 </div>
 
                 <!-- 无对应组件 -->
-                <div v-if="!getComponent(node.viewComponentPath)" class="avd-empty-sm">
-                  暂无表单组件
+                <div v-if="!getComponent(node.viewComponentPath)" class="node-fallback-view">
+                  <div v-if="node.slotSelections?.length" class="slot-snapshot">
+                    <div class="slot-snapshot-title">处理人快照</div>
+                    <div v-for="slot in node.slotSelections" :key="slot.slotKey" class="slot-snapshot-row">
+                      <span class="slot-label">{{ slot.label || slot.slotKey }}</span>
+                      <span class="slot-users">{{ slot.users.join('、') }}</span>
+                    </div>
+                  </div>
+                  <div v-else class="avd-empty-sm">
+                    暂无表单组件
+                  </div>
                 </div>
 
                 <!-- 表单只读渲染区 -->
@@ -152,6 +161,7 @@ import {
 } from '@element-plus/icons-vue'
 import FlowGraph from './Flowgraph.vue'
 import StatusTag from '/@/workflow-shared/StatusTag.vue'
+import { getAuditHistory } from '/@/api/workflow/processApi'
 import { resolveComponent } from '/@/router/componentRegistry.js'
 
 // ─────────────────────────────────────────────────
@@ -183,6 +193,78 @@ const drawerVisible = computed({
   get: () => props.modelValue,
   set: v => emit('update:modelValue', v),
 })
+
+const auditHistoryMap = ref({})
+const auditLoading = ref(false)
+const auditRequestId = ref(0)
+
+async function loadAuditHistory(businessId) {
+  if (!businessId) return
+
+  const requestId = auditRequestId.value + 1
+  auditRequestId.value = requestId
+  auditLoading.value = true
+  try {
+    const items = await getAuditHistory(businessId)
+    const map = {}
+
+    ;(items ?? []).forEach((item) => {
+      const round = item.round ?? 1
+      const nodeKey = round > 1
+        ? `${item.taskDefinitionKey}__round${round}`
+        : item.taskDefinitionKey
+      map[nodeKey] = item
+      map[item.taskDefinitionKey] = item
+    })
+
+    if (requestId === auditRequestId.value) {
+      auditHistoryMap.value = map
+    }
+  } catch {
+    if (requestId === auditRequestId.value) {
+      auditHistoryMap.value = {}
+    }
+  } finally {
+    if (requestId === auditRequestId.value) {
+      auditLoading.value = false
+    }
+  }
+}
+
+const resolvedNodes = computed(() =>
+  props.nodes.map((node) => {
+    if (!node.completedAt) return node
+
+    const hist = auditHistoryMap.value[node.nodeKey]
+    return {
+      ...node,
+      nodeName: node.nodeName || hist?.nodeName || hist?.taskDefinitionKey || node.nodeKey,
+      slotSelections: node.slotSelections?.length
+        ? node.slotSelections
+        : normalizeSlotSelections(hist?.slotSelections),
+    }
+  })
+)
+
+function normalizeSlotSelections(slotSelections) {
+  if (!Array.isArray(slotSelections)) return []
+
+  return slotSelections.map((slot) => ({
+    slotKey: slot.slotKey ?? '',
+    label: slot.label ?? slot.slotKey ?? '',
+    users: Array.isArray(slot.users) ? slot.users : [],
+  }))
+}
+
+watch(
+  () => [props.modelValue, props.appInfo?.businessId],
+  ([visible, businessId]) => {
+    if (!visible || !businessId) return
+    auditHistoryMap.value = {}
+    loadAuditHistory(businessId)
+  },
+  { immediate: true }
+)
 
 // ─────────────────────────────────────────────────
 //  组件解析
@@ -217,7 +299,7 @@ watch(nodeRefs, async (refs) => {
   for (const [nodeKey, formRef] of Object.entries(refs)) {
     if (!formRef || initializedKeys.value.has(nodeKey)) continue
 
-    const node = props.nodes.find(n => n.nodeKey === nodeKey)
+    const node = resolvedNodes.value.find(n => n.nodeKey === nodeKey)
     if (!node) continue
 
     initializedKeys.value.add(nodeKey)
@@ -240,6 +322,9 @@ watch(() => props.modelValue, (visible) => {
     nodeRefs.value        = {}
     initializedKeys.value = new Set()
     activeTab.value       = ''
+    auditRequestId.value += 1
+    auditLoading.value    = false
+    auditHistoryMap.value = {}
   }
 })
 
@@ -249,7 +334,7 @@ const activeTab = ref('')
 //  Tab 切换
 // ─────────────────────────────────────────────────
 watch(
-  () => [props.modelValue, props.nodes],
+  () => [props.modelValue, resolvedNodes.value],
   ([visible, list]) => {
     if (!visible || !list?.length) return
     // 默认选中第一个已完成节点，没有则选第一个
@@ -522,6 +607,43 @@ watch(
 .sp-hint               { font-size: var(--wf-font-sm); color: var(--wf-ink-3); }
 
 /* ── 表单只读区 ── */
+.node-fallback-view {
+  padding: var(--wf-space-16);
+}
+
+.slot-snapshot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wf-space-8);
+}
+
+.slot-snapshot-title {
+  font-size: var(--wf-font-sm);
+  font-weight: var(--wf-font-weight-semibold);
+  color: var(--wf-ink-3);
+  margin-bottom: var(--wf-space-4);
+}
+
+.slot-snapshot-row {
+  display: flex;
+  align-items: center;
+  gap: var(--wf-space-12);
+  padding: 8px 12px;
+  background: var(--wf-bg-section);
+  border-radius: var(--wf-radius-sm);
+  font-size: var(--wf-font-base);
+}
+
+.slot-label {
+  color: var(--wf-ink-3);
+  white-space: nowrap;
+}
+
+.slot-users {
+  color: var(--wf-ink);
+  font-weight: var(--wf-font-weight-medium);
+}
+
 .view-form-wrap :deep(.el-input__wrapper),
 .view-form-wrap :deep(.el-textarea__wrapper) {
   pointer-events: none;

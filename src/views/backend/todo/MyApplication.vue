@@ -160,6 +160,7 @@ import {
   getProcessProgress,
   terminateProcess,
 } from "/@/api/workflow/processApi"
+import { adaptProgressToNodes } from "/@/api/workflow/processProgressAdapter"
 import { businessTypeMap } from "/@/components/todo/workflowConstants"
 
 // ── 状态 ──────────────────────────────────────
@@ -352,26 +353,7 @@ const openViewDrawer = async (row) => {
 
   nodesLoading.value = false
   if (nodesRes.status === "fulfilled") {
-    const progress = nodesRes.value
-    const historyNodes = (progress.auditHistory ?? []).map(r => ({
-      nodeKey:          r.taskDefinitionKey,
-      nodeName:         r.taskDefinitionKey,
-      nodeSemantic:     r.nodeSemantic,
-      operator:         r.operatorId,
-      completedAt:      r.operatedAt,
-      approveComment:   r.comment,
-      viewComponentPath: null,
-    }))
-    const activeNodes = (progress.currentNodes ?? []).map(n => ({
-      nodeKey:          n.nodeId,
-      nodeName:         n.nodeName,
-      nodeSemantic:     n.nodeSemantic,
-      operator:         n.assignee,
-      completedAt:      null,
-      approveComment:   null,
-      viewComponentPath: null,
-    }))
-    currentNodes.value = [...historyNodes, ...activeNodes]
+    currentNodes.value = adaptProgressToNodes(nodesRes.value)
   }
 }
 
