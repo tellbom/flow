@@ -1,103 +1,60 @@
+# 业务流程运行管理平台
 
+## 待办审批 iframe 通信协议
 
-# Oversia
+待办审批页由主容器 `TaskApproveDrawer.vue` 渲染业务表单 iframe，并由主容器顶部的“同意”按钮提交流程中心 `completeTask`。业务表单如果需要在提交前异步保存或返回流程变量，可以通过 `window.parent.postMessage` 主动通知主容器。
 
-Oversia 是一个基于 Vue 3 + TypeScript + Element Plus 构建的企业级管理系统，提供完善的用户权限管理、数据安全、操作日志等功能。
+协议采用“子页面主动推送”模式：
 
-## 技术栈
+| child → parent 消息 | 含义 |
+| --- | --- |
+| `{ type: 'WF_EVENT', event: 'formLoading' }` | 业务表单正在异步处理，请主容器锁住“同意”按钮 |
+| `{ type: 'WF_EVENT', event: 'formReady', payload: { variables? } }` | 业务表单已准备好，可以提交，可携带业务变量 |
+| `{ type: 'WF_EVENT', event: 'formError', payload: { reason } }` | 业务表单校验失败或保存失败，主容器解锁按钮但提交时阻断 |
 
-- **前端框架**: Vue 3
-- **语言**: TypeScript
-- **状态管理**: Pinia
-- **路由**: Vue Router
-- **UI 组件库**: Element Plus
-- **HTTP 请求**: Axios
-- **构建工具**: Vite
-- **代码规范**: ESLint + Prettier
+三方业务表单不实现该协议时，主容器收不到消息，“同意”按钮全程可点击，保持原有无感知行为。
 
-## 项目结构
+### 状态机
 
-```
-src/
-├── api/                    # API 接口层
-│   ├── backend/          # 后台管理 API
-│   └── frontend/         # 前端用户 API
-├── assets/               # 静态资源
-├── components/           # 公共组件
-│   ├── baInput/         # 表单输入组件
-│   ├── claudetable/     # 表格组件
-│   ├── table/           # 表格渲染
-│   └── todo/            # 工作流组件
-├── layouts/              # 布局组件
-│   ├── backend/         # 后台布局
-│   ├── common/          # 公共布局
-│   └── frontend/        # 前端布局
-├── lang/                 # 国际化语言包
-│   ├── backend/         # 后台语言
-│   ├── common/          # 公共语言
-│   └── frontend/        # 前端语言
-├── router/               # 路由配置
-├── stores/               # Pinia 状态管理
-├── styles/               # 全局样式
-├── utils/                # 工具函数
-└── views/                # 页面视图
-    ├── backend/          # 后台管理页面
-    ├── common/           # 公共页面
-    └── frontend/         # 前端用户页面
+```text
+iframe load 完成
+  └─ parent 注册监听器，等待 child 主动推送
+
+child 推送 formLoading  → iframeLocked = true
+child 推送 formReady    → iframeLocked = false，缓存 variables
+child 推送 formError    → iframeLocked = false，记录 reason
+
+用户点同意：
+  ├─ iframeFormError 非空 → 提示错误并阻断
+  ├─ iframeFormVars 非空  → 合并进 flowVars，且不覆盖用户已选网关变量
+  └─ 继续原有 gateway / slot 校验 → completeTask
 ```
 
-## 功能特性
+### 子页面示例
 
-### 后台管理
-- 用户管理 - 管理员账号管理
-- 用户组管理 - 权限组配置
-- 规则管理 - 权限规则设置
-- 模块管理 - 系统模块安装与配置
-- 系统配置 - 系统参数配置
-- 附件管理 - 文件上传与管理
-- 安全中心 - 数据回收站、敏感数据管理
-- 操作日志 - 管理员操作记录
-- 工作流 - 审批流程管理
+```js
+window.parent.postMessage({ type: 'WF_EVENT', event: 'formLoading' }, '*')
 
-### 前端用户中心
-- 用户登录/注册
-- 账户余额
-- 积分管理
-- 个人资料
-- 密码修改
-
-### 系统特性
-- 响应式布局，支持多种屏幕尺寸
-- 暗色/亮色主题切换
-- 国际化支持（中英文）
-- RBAC 权限控制
-- 数据回收机制
-- 敏感数据保护
-- 操作日志审计
-
-## 开发
-
-```bash
-# 安装依赖
-npm install
-
-# 开发模式
-npm run dev
-
-# 构建生产版本
-npm run build
-
-# 代码检查
-npm run lint
+try {
+  await saveForm()
+  window.parent.postMessage({
+    type: 'WF_EVENT',
+    event: 'formReady',
+    payload: {
+      variables: {
+        approval_route: 'A',
+      },
+    },
+  }, '*')
+} catch (error) {
+  window.parent.postMessage({
+    type: 'WF_EVENT',
+    event: 'formError',
+    payload: {
+      reason: error?.message || '业务表单保存失败',
+    },
+  }, '*')
+}
 ```
 
-## 配置
-
-项目支持多环境配置：
-- `.env` - 默认配置
-- `.env.development` - 开发环境配置
-- `.env.production` - 生产环境配置
-
-## 许可证
-
-MIT License
+主容器侧使用 `src/utils/iframeBridge.js` 监听消息，并校验 `event.source === iframe.contentWindow`，只接收当前业务 iframe 的事件。

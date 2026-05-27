@@ -30,8 +30,12 @@
           <el-button
             type="success" :icon="CircleCheck"
             :loading="submitting === 'approve'"
+            :disabled="iframeLocked"
             @click="handleApprove"
-          >同意</el-button>
+          >
+            <span v-if="iframeLocked">等待表单...</span>
+            <span v-else>同意</span>
+          </el-button>
           <el-button
             v-if="taskInfo?.canReject"
             type="danger" :icon="CircleClose"
@@ -63,13 +67,14 @@
               </div>
               <iframe
                 v-if="taskInfo?.pageUrl"
+                ref="iframeEl"
                 :key="iframeKey"
                 :src="taskInfo.pageUrl"
                 class="task-iframe"
                 :class="{ 'iframe-hidden': iframeLoading }"
                 frameborder="0"
                 allowfullscreen
-                @load="iframeLoading = false"
+                @load="handleIframeLoad"
                 @error="handleIframeError"
               />
               <IframeErrorFallback
@@ -278,7 +283,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { CircleCheck, CircleClose, Switch, View, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAdminInfo } from '/@/stores/adminInfo'
@@ -291,6 +296,7 @@ import { completeTask, reassignTask } from '/@/api/workflow/processApi'
 import { statusTagType, statusLabel, formatDate } from '/@/workflow-shared/workflowUtils.js'
 import { businessTypeMap, priorityMap } from '/@/components/todo/workflowConstants'
 import { mockOrgList, mockUserList } from '/@/components/todo/mockData.js'
+import { onIframeEvent } from '/@/utils/iframeBridge'
 
 const adminInfo = useAdminInfo()
 
@@ -330,21 +336,64 @@ const activeTab = ref('form')
 const iframeLoading = ref(true)
 const iframeError   = ref(false)
 const iframeKey     = ref(0)
+const iframeEl      = ref(null)
+const iframeLocked  = ref(false)
+const iframeFormVars = ref({})
+const iframeFormError = ref('')
+const bridgeUnsubs = ref([])
+
+function resetBridgeState() {
+  bridgeUnsubs.value.forEach(fn => fn())
+  bridgeUnsubs.value = []
+  iframeLocked.value = false
+  iframeFormVars.value = {}
+  iframeFormError.value = ''
+}
+
+function handleIframeLoad() {
+  iframeLoading.value = false
+  resetBridgeState()
+
+  if (!iframeEl.value) return
+
+  const unsubLoading = onIframeEvent(iframeEl.value, 'formLoading', () => {
+    iframeLocked.value = true
+    iframeFormError.value = ''
+  })
+
+  const unsubReady = onIframeEvent(iframeEl.value, 'formReady', (payload) => {
+    iframeLocked.value = false
+    iframeFormError.value = ''
+    if (payload?.variables && typeof payload.variables === 'object') {
+      iframeFormVars.value = payload.variables
+    }
+  })
+
+  const unsubError = onIframeEvent(iframeEl.value, 'formError', (payload) => {
+    iframeLocked.value = false
+    iframeFormError.value = payload?.reason || '业务表单存在错误，请检查后重试'
+  })
+
+  bridgeUnsubs.value = [unsubLoading, unsubReady, unsubError]
+}
 
 function handleIframeError() {
   iframeLoading.value = false
   iframeError.value   = true
+  resetBridgeState()
 }
 
 function reloadIframe() {
   iframeError.value   = false
   iframeLoading.value = true
+  resetBridgeState()
   iframeKey.value++
 }
 
 watch(() => props.taskInfo?.pageUrl, () => {
   iframeLoading.value = true
   iframeError.value   = false
+  resetBridgeState()
 })
 
 // ── iframe 高度：有选人区时压缩，无选人区时撑满 ──────────────
@@ -499,6 +548,7 @@ watch(() => props.taskInfo, () => {
   ;(props.taskInfo?.requiredSlots ?? []).forEach(s => { init[s.slotKey] = [] })
   slotSelections.value = init
   flowVars.value       = {}
+  resetBridgeState()
 }, { immediate: true })
 
 // activeSlots 变化时清除失活 slot 的选人（conditionalOn 切换）
@@ -561,6 +611,15 @@ const submitting     = ref('')
 const approveComment = ref('')
 
 const handleApprove = async () => {
+  if (iframeFormError.value) {
+    ElMessage.warning(iframeFormError.value)
+    return
+  }
+
+  if (Object.keys(iframeFormVars.value).length) {
+    flowVars.value = { ...iframeFormVars.value, ...flowVars.value }
+  }
+
   for (const group of gatewayGroups.value) {
     if (flowVars.value[group.variable] == null || flowVars.value[group.variable] === '') {
       ElMessage.warning(`请选择「${group.label}」`)
@@ -698,9 +757,14 @@ const handleClose = (done) => {
   flowVars.value                = {}
   iframeLoading.value           = true
   iframeError.value             = false
+  resetBridgeState()
   activeTab.value               = 'form'
   done()
 }
+
+onBeforeUnmount(() => {
+  resetBridgeState()
+})
 </script>
 
 <style>

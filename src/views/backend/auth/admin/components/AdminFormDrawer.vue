@@ -315,10 +315,10 @@ const mockOrgList = [
 ]
 
 const mockUserList = [
-  { id: 'u001', name: '张三',   workNo: 'EMP001', phone: '13800000001', position: '前端工程师', orgId: 'org-1-1' },
-  { id: 'u002', name: '李四',   workNo: 'EMP002', phone: '13800000002', position: '后端工程师', orgId: 'org-1-1' },
-  { id: 'u003', name: '王五',   workNo: 'EMP003', phone: '13800000003', position: '产品经理',   orgId: 'org-1-2' },
-  { id: 'u004', name: '赵六',   workNo: 'EMP004', phone: '13800000004', position: '运营专员',   orgId: 'org-1-2' },
+  { id: 'u001', name: '张三',   workNo: '196001', phone: '13800000001', position: '前端工程师', orgId: 'org-1-1' },
+  { id: 'u002', name: '李四',   workNo: '196002', phone: '13800000002', position: '后端工程师', orgId: 'org-1-1' },
+  { id: 'u003', name: '王五',   workNo: '196003', phone: '13800000003', position: '产品经理',   orgId: 'org-1-2' },
+  { id: 'u004', name: '赵六',   workNo: '196004', phone: '13800000004', position: '运营专员',   orgId: 'org-1-2' },
   { id: 'u005', name: '孙七',   workNo: 'EMP005', phone: '13800000005', position: '财务主管',   orgId: 'org-1-3' },
   { id: 'u006', name: '周八',   workNo: 'EMP006', phone: '13800000006', position: '市场总监',   orgId: 'org-2-1' },
   { id: 'u007', name: '吴九',   workNo: 'EMP007', phone: '13800000007', position: '架构师',     orgId: 'org-1-1' },
