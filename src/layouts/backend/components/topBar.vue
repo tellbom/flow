@@ -63,12 +63,10 @@ import { computed, reactive } from 'vue'
 import { useAdminInfo } from '/@/stores/adminInfo'
 import { fullUrl } from '/@/utils/common'
 import { routePush } from '/@/utils/router'
-import { logout } from '/@/api/backend/index'
-import { Local } from '/@/utils/storage'
-import { ADMIN_INFO } from '/@/stores/constant/cacheKey'
 import router from '/@/router'
 import { useNavTabs } from '/@/stores/navTabs'
 import type { RouteLocationRaw, RouteRecordName } from 'vue-router'
+import { logoutWithKeycloak } from '/@/utils/keycloak'
 
 const adminInfo = useAdminInfo()
 const navTabs = useNavTabs()
@@ -127,10 +125,7 @@ const onSearchTodo = () => {
 }
 
 const onLogout = () => {
-    logout().then(() => {
-        Local.remove(ADMIN_INFO)
-        router.go(0)
-    })
+    logoutWithKeycloak()
 }
 </script>
 
