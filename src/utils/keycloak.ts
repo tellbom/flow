@@ -2,7 +2,7 @@
  * @Author: fzq
  * @Date: 2026-05-27 11:43:25
  * @LastEditors: fzq
- * @LastEditTime: 2026-05-27 14:08:16
+ * @LastEditTime: 2026-05-27 14:11:49
  * @Description:
  * @FilePath: \web\src\utils\keycloak.ts
  */
@@ -11,6 +11,7 @@ import type { KeycloakInitOptions, KeycloakInstance } from 'keycloak-js'
 import { useAdminInfo } from '/@/stores/adminInfo'
 
 let keycloak: KeycloakInstance | null = null
+let sessionPollTimer: ReturnType<typeof setInterval> | null = null
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  背景：
@@ -30,6 +31,41 @@ let keycloak: KeycloakInstance | null = null
 //  解决方案：在调用 kc.init() 之前，把上面三个全部 polyfill 到 globalThis.crypto，
 //  且只在对应方法缺失时才注入，不影响 HTTPS 正式环境。
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 登录成功后调用，每隔 intervalSeconds 秒检查一次 session 是否还有效。
+ * 管理员踢人后，下次刷新 token 会失败，前端自动登出。
+ */
+export function startSessionPoll(intervalSeconds = 60) {
+    stopSessionPoll()
+    sessionPollTimer = setInterval(async () => {
+        const kc = getKeycloak()
+        try {
+            // minValidity=0 强制刷新，不走本地缓存
+            const refreshed = await kc.updateToken(0)
+            if (refreshed) {
+                // token 已更新，同步写入 store
+                const adminInfo = useAdminInfo()
+                adminInfo.dataFill({
+                    ...adminInfo,
+                    token: kc.token!,
+                    refresh_token: kc.refreshToken || '',
+                })
+            }
+        } catch {
+            // 刷新失败 = session 已被踢或过期，强制登出
+            stopSessionPoll()
+            await logoutWithKeycloak()
+        }
+    }, intervalSeconds * 1000)
+}
+
+export function stopSessionPoll() {
+    if (sessionPollTimer !== null) {
+        clearInterval(sessionPollTimer)
+        sessionPollTimer = null
+    }
+}
 
 /** 纯 JS SHA-256，仅用于 PKCE challenge，不依赖任何第三方库 */
 function sha256(data: ArrayBuffer): ArrayBuffer {
@@ -215,10 +251,10 @@ export async function loginWithKeycloak() {
         await kc.login({ redirectUri: getKeycloakLoginRedirectUri() })
         return false
     }
-    console.log(kc)
     if (kc.token) {
         adminInfo.setToken(kc.token, 'auth')
     }
+    startSessionPoll(60)   // 每 60 秒检查一次，按需调整
 
     return true
 }
