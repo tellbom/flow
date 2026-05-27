@@ -102,7 +102,8 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { Bell, Edit } from '@element-plus/icons-vue'
 import { useAdminInfo } from '/@/stores/adminInfo'
 import Commonsearch from '/@/components/claudetable/Commonsearch.vue'
@@ -112,6 +113,7 @@ import { getPendingTasks, getFlowRender } from '/@/api/workflow/processApi'
 import { businessTypeMap, priorityMap } from '/@/components/todo/workflowConstants'
 
 const adminInfo = useAdminInfo()
+const route = useRoute()
 
 // ── 状态 ──────────────────────────────────────
 const todoList     = ref([])
@@ -119,6 +121,22 @@ const total        = ref(0)
 const searchParams = ref({})
 const pagination   = reactive({ pageIndex: 1, pageSize: 20 })
 const loading      = ref(false)
+
+const normalizeQueryValue = (value) => Array.isArray(value) ? value[0] : value
+
+function syncSearchFromRoute() {
+  const keyword = normalizeQueryValue(route.query.keyword)
+  const taskId = normalizeQueryValue(route.query.taskId)
+  const businessId = normalizeQueryValue(route.query.businessId)
+  const businessType = normalizeQueryValue(route.query.businessType)
+
+  searchParams.value = {
+    ...(keyword ? { keyword } : {}),
+    ...(taskId ? { taskId } : {}),
+    ...(businessId ? { businessId } : {}),
+    ...(businessType ? { businessType } : {}),
+  }
+}
 
 // ── 搜索字段配置 ──────────────────────────────
 const searchFields = [
@@ -171,6 +189,9 @@ async function loadTodoList() {
   try {
     const result = await getPendingTasks({
       employeeId: adminInfo.userid,
+      keyword: searchParams.value.keyword || undefined,
+      taskId: searchParams.value.taskId || undefined,
+      businessId: searchParams.value.businessId || undefined,
       businessType: searchParams.value.businessType || undefined,
       pageIndex: pagination.pageIndex,
       pageSize: pagination.pageSize,
@@ -250,8 +271,18 @@ const handleTaskDone = async () => {
 
 // ── 初始化 ────────────────────────────────────
 onMounted(() => {
+  syncSearchFromRoute()
   loadTodoList()
 })
+
+watch(
+  () => route.query,
+  () => {
+    syncSearchFromRoute()
+    pagination.pageIndex = 1
+    loadTodoList()
+  }
+)
 </script>
 
 <style scoped>

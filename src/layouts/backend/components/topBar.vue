@@ -11,6 +11,17 @@
             </div>
         </div>
 
+        <div class="top-bar-spacer"></div>
+
+        <input
+            v-model.trim="state.keyword"
+            class="top-bar-search"
+            placeholder="搜索待办任务 / 业务ID"
+            @keyup.enter="onSearchTodo"
+        />
+
+        <div class="top-bar-divider"></div>
+
         <!-- 右侧：管理员信息 -->
         <div class="top-bar-right">
             <el-popover
@@ -25,16 +36,16 @@
             >
                 <template #reference>
                     <div class="admin-info" :class="state.isHover ? 'hover' : ''">
-                        <div class="admin-name">{{ adminInfo.nickname }}</div>
-                        <el-avatar :size="32" :src="fullUrl(adminInfo.avatar)"></el-avatar>
+                        <el-avatar :size="32" :src="adminAvatar"></el-avatar>
+                        <div class="admin-name">{{ adminDisplayName }}</div>
                     </div>
                 </template>
                 <div>
                     <div class="admin-info-content">
-                        <el-avatar :size="60" :src="fullUrl(adminInfo.avatar)"></el-avatar>
+                        <el-avatar :size="60" :src="adminAvatar"></el-avatar>
                         <div class="admin-details">
-                            <div class="admin-name-large">{{ adminInfo.nickname }}</div>
-                            <div class="admin-lasttime">{{ adminInfo.last_login_time }}</div>
+                            <div class="admin-name-large">{{ adminDisplayName }}</div>
+                            <div class="admin-lasttime">{{ adminSubtitle }}</div>
                         </div>
                     </div>
                     <div class="admin-info-actions">
@@ -48,23 +59,36 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { computed, reactive } from 'vue'
 import { useAdminInfo } from '/@/stores/adminInfo'
-import { useSiteConfig } from '/@/stores/siteConfig'
 import { fullUrl } from '/@/utils/common'
 import { routePush } from '/@/utils/router'
 import { logout } from '/@/api/backend/index'
 import { Local } from '/@/utils/storage'
 import { ADMIN_INFO } from '/@/stores/constant/cacheKey'
 import router from '/@/router'
+import { useNavTabs } from '/@/stores/navTabs'
+import type { RouteLocationRaw, RouteRecordName } from 'vue-router'
 
 const adminInfo = useAdminInfo()
-const siteConfig = useSiteConfig()
+const navTabs = useNavTabs()
 
 const state = reactive({
     isHover: false,
     showAdminInfoPopover: false,
+    keyword: '',
 })
+
+const adminDisplayName = computed(() => adminInfo.nickname || adminInfo.username || adminInfo.userid || '管理员')
+const adminAvatar = computed(() => fullUrl(adminInfo.avatar || ''))
+const adminSubtitle = computed(() => [adminInfo.userid, adminInfo.project].filter(Boolean).join(' · '))
+
+interface TopBarMenuRoute {
+    path: string
+    name?: RouteRecordName | null
+    component?: unknown
+    children?: TopBarMenuRoute[]
+}
 
 const onCurrentNavMenu = (status: boolean) => {
     state.isHover = status
@@ -73,6 +97,33 @@ const onCurrentNavMenu = (status: boolean) => {
 const onAdminInfo = () => {
     state.showAdminInfoPopover = false
     routePush({ name: 'routine/adminInfo' })
+}
+
+const findMenuRouteByComponent = (componentSuffix: string, routeNameFallback: string) => {
+    const stack: TopBarMenuRoute[] = [...(navTabs.state.tabsViewRoutes as unknown as TopBarMenuRoute[])]
+    while (stack.length) {
+        const item = stack.shift()!
+        const component = typeof item.component === 'string' ? item.component : ''
+        if (component.endsWith(componentSuffix)) return item
+        if (item.children?.length) stack.push(...item.children)
+    }
+
+    if (router.hasRoute(routeNameFallback)) return { path: '', name: routeNameFallback } as TopBarMenuRoute
+    return undefined
+}
+
+const onSearchTodo = () => {
+    const keyword = state.keyword.trim()
+    if (!keyword) return
+
+    const menuRoute = findMenuRouteByComponent('todo/MyTodo.vue', 'MyTodo')
+    if (!menuRoute) return
+
+    const target: RouteLocationRaw = menuRoute.name
+        ? { name: menuRoute.name, query: { keyword } }
+        : { path: menuRoute.path, query: { keyword } }
+
+    routePush(target)
 }
 
 const onLogout = () => {
@@ -94,16 +145,13 @@ const onLogout = () => {
     top: 0;
     left: 0;
     right: 0;
-    height: 48px; /* Apple 风格高度 */
-    /* 顶部导航 */
-    background: #0066cc;
-    backdrop-filter: blur(20px) saturate(180%); /* 毛玻璃效果 */
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-bottom: 1px solid var(--streamline-hairline);
+    height: 64px;
+    background: linear-gradient(180deg, #066bd1 0%, #0058b8 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
+    gap: 24px;
+    padding: 0 40px;
     z-index: 1000;
 }
 
@@ -111,16 +159,22 @@ const onLogout = () => {
 .top-bar-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
+    flex-shrink: 0;
 }
 
 .system-logo {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: grid;
+    place-items: center;
     
     img {
-        width: 100%;
-        height: 100%;
+        width: 22px;
+        height: 22px;
         object-fit: contain;
     }
 }
@@ -133,11 +187,12 @@ const onLogout = () => {
 }
 
 .system-name {
-    font-size: 23px;
+    font-size: 19px;
     font-weight: 600;
     color: var(--streamline-ink);
     margin: 0;
-    letter-spacing: -0.022em; /* Apple 字距 */
+    letter-spacing: 0.4px;
+    white-space: nowrap;
 }
 
 .system-subtitle {
@@ -147,23 +202,54 @@ const onLogout = () => {
 }
 
 /* 右侧区域 */
+.top-bar-spacer {
+    flex: 1;
+}
+
+.top-bar-search {
+    height: 36px;
+    min-width: 280px;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 9999px;
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 13px;
+    padding: 0 14px 0 36px;
+    outline: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-opacity='0.7' stroke-width='2'><circle cx='11' cy='11' r='7'/><path d='m21 21-4.3-4.3'/></svg>");
+    background-repeat: no-repeat;
+    background-position: 12px center;
+}
+
+.top-bar-search::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.top-bar-divider {
+    width: 1px;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.18);
+}
+
 .top-bar-right {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .admin-info {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 6px 12px;
-    border-radius: 20px;
+    padding: 4px 10px 4px 4px;
+    border-radius: 9999px;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     
     &:hover,
     &.hover {
-        background-color: rgba(0, 102, 204, 0.08);
+        background-color: rgba(255, 255, 255, 0.1);
     }
 }
 
@@ -171,6 +257,8 @@ const onLogout = () => {
     font-size: 14px;
     font-weight: 400;
     color: var(--streamline-ink);
+    letter-spacing: -0.1px;
+    white-space: nowrap;
 }
 
 /* Popover 内容样式 */
@@ -189,7 +277,7 @@ const onLogout = () => {
 .admin-name-large {
     font-size: 17px;
     font-weight: 600;
-    color: var(--streamline-ink);
+    color: #1d1d1f;
     margin-bottom: 4px;
 }
 

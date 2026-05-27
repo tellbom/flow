@@ -230,9 +230,18 @@ export interface PendingTaskDto {
 export interface GetPendingTasksParams {
   employeeId?:  string
   EmployeeId?:  string
+  keyword?:     string
+  Keyword?:     string
+  taskId?:      string
+  TaskId?:      string
+  businessId?:  string
+  BusinessId?:  string
   businessType?: string
+  BusinessType?: string
   pageIndex?:   number
+  PageIndex?:   number
   pageSize?:    number
+  PageSize?:    number
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -634,6 +643,12 @@ export function getPendingTasks(params: GetPendingTasksParams = {}) {
   const normalizedParams = {
     ...params,
     EmployeeId: params.EmployeeId ?? params.employeeId,
+    Keyword: params.Keyword ?? params.keyword,
+    TaskId: params.TaskId ?? params.taskId,
+    BusinessId: params.BusinessId ?? params.businessId,
+    BusinessType: params.BusinessType ?? params.businessType,
+    PageIndex: params.PageIndex ?? params.pageIndex,
+    PageSize: params.PageSize ?? params.pageSize,
   }
 
   return createProcessRequest<PageResult<PendingTaskDto>>({
