@@ -119,7 +119,7 @@
           </el-form-item>
 
           <el-form-item label="图标 (icon)">
-            <el-input v-model="formData.icon" placeholder="fa fa-cog" clearable />
+            <RuleIconSelector v-model="formData.icon" title="选择菜单图标" />
           </el-form-item>
 
           <!-- menuType 仅 menu 显示 -->
@@ -222,6 +222,7 @@ import {
   type RuleUpdateForm,
   type RecordStatus,
 } from '/@/api/backend/rbac'
+import RuleIconSelector from './RuleIconSelector.vue'
 
 // ── Props / Emits ──────────────────────────────────────────────
 interface Props {
@@ -353,7 +354,7 @@ watch(
       formData.remark         = m.remark ?? ''
       formData.keepalive      = m.keepalive ?? false
       formData.weigh          = (m as any).weigh ?? 0
-      formData.status         = (m.status as RecordStatus) ?? 'Active'
+      formData.status         = ((m as any).status as RecordStatus) ?? 'Active'
       // 从树中反查父 ruleCode
       formData.parentRuleCode = findParentRuleCode(m.ruleCode, props.ruleTree) ?? ''
     } else {
@@ -394,8 +395,9 @@ function findParentRuleCode(
 }
 
 // 类型切换：比较小写值，提交时直接用 formData.type
-function handleTypeChange(type: string) {
-  if (type === 'button') {
+function handleTypeChange(type: string | number | boolean | undefined) {
+  const ruleType = String(type || 'menu') as FormData['type']
+  if (ruleType === 'button') {
     formData.path      = ''
     formData.menuType  = ''
     formData.url       = ''
@@ -403,7 +405,7 @@ function handleTypeChange(type: string) {
     formData.keepalive = false
   }
   if (formData.ruleCode) {
-    formData.permissionCode = buildPermissionCode(formData.ruleCode, type)
+    formData.permissionCode = buildPermissionCode(formData.ruleCode, ruleType)
   }
 }
 

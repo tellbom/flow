@@ -136,14 +136,14 @@ export async function createProcessRequest<T = any>(
     headers: { 'Content-Type': 'application/json' },
   })
 
-  // ── 请求拦截：注入 X-User-Id ──
+  // ── 请求拦截：注入 Authorization ──
   instance.interceptors.request.use((config) => {
     try {
       const adminInfo = useAdminInfo()
-      const userId = adminInfo.userid || ''
-      if (userId) {
+      const token = adminInfo.token || ''
+      if (token) {
         config.headers = config.headers ?? {}
-        ;(config.headers as any)['X-User-Id'] = userId
+        ;(config.headers as any)['Authorization'] = `Bearer ${token}`
       }
     } catch {
       // store 未就绪时跳过（如登录前调用）
