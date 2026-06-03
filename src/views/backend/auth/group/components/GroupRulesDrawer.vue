@@ -48,17 +48,18 @@
 
         <div class="info-tip">
           <i class="fa fa-info-circle" />
-          勾选父节点将自动级联选中所有子节点。提交的是全量 <code>ruleCode</code> 列表，
+          父子节点互不级联。提交时仅包含当前手动勾选的 <code>ruleCode</code> 列表，
           服务端推导 <code>permissionCode</code>。
         </div>
 
-        <!-- 规则树：去掉 check-strictly，启用级联勾选 -->
+        <!-- 规则树：check-strictly 关闭父子级联勾选 -->
         <el-tree
           ref="treeRef"
           :data="filteredRuleTree"
           :props="{ label: 'title', children: 'children' }"
           node-key="ruleCode"
           show-checkbox
+          check-strictly
           :default-expand-all="true"
           :filter-node-method="filterNode"
           class="rule-tree"
@@ -337,7 +338,7 @@ function handleCheck() {
 }
 function updateCheckedCount() {
   if (!treeRef.value) return
-  // 去掉 check-strictly 后，getCheckedKeys 已包含级联选中的子节点
+  // check-strictly 模式下，getCheckedKeys 仅返回当前手动勾选的节点。
   checkedCount.value = treeRef.value.getCheckedKeys().length
 }
 function getTypeShort(type: string): string {
@@ -381,7 +382,7 @@ function getActionTagType(action: string): '' | 'success' | 'warning' | 'info' |
 async function handleSubmit() {
   if (!props.target) return
 
-  // getCheckedKeys 在非 check-strictly 模式下返回完整级联选中的叶子+父节点
+  // check-strictly 模式下，前端勾选哪些 ruleCode 就提交哪些 ruleCode。
   const ruleCodes: string[] = treeRef.value?.getCheckedKeys() ?? []
 
   submitting.value = true

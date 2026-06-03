@@ -69,13 +69,14 @@
             </div>
             <div class="info-tip">
               <i class="fa fa-info-circle" />
-              勾选父节点将自动级联选中所有子节点。
+              父子节点互不级联，提交时仅包含当前手动勾选的规则。
             </div>
             <el-tree
               ref="treeRef"
               :data="filteredRuleTree"
               :props="{ label: 'title', children: 'children' }"
               node-key="ruleCode" show-checkbox
+              check-strictly
               :default-expand-all="true"
               :filter-node-method="filterNode"
               class="rule-tree"
