@@ -443,6 +443,18 @@ defineExpose({ clearSelection })
   font-size: var(--wf-font-base);
 }
 
+:deep(.el-table__row.hover-row .el-button--primary.is-link),
+:deep(.el-table__row:hover .el-button--primary.is-link) {
+  color: var(--wf-primary) !important;
+  background: transparent !important;
+}
+
+:deep(.el-table__row.hover-row .el-button--primary.is-link:hover),
+:deep(.el-table__row:hover .el-button--primary.is-link:hover) {
+  color: var(--wf-primary-hover) !important;
+  background: rgba(0, 102, 204, 0.08) !important;
+}
+
 /* ── 单元格文字 ── */
 .cell-text {
   overflow: hidden;

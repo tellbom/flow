@@ -117,7 +117,7 @@ onMounted(async () => {
         state.value = 'success'
         // 短暂展示成功状态后跳转，避免闪烁
         setTimeout(() => {
-            router.replace({ path: adminBaseRoutePath + bridge.routePath })
+            router.replace({ path: adminBaseRoutePath + "/" + bridge.routePath })
         }, 600)
 
     } catch (error) {
