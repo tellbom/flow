@@ -135,6 +135,29 @@
       </Transition>
     </Teleport>
 
+    <!-- ── 同意意见（completedRecords.comment）── -->
+    <template v-if="approvedCommentRecords.length">
+      <div class="approve-comment-header">
+        <el-icon color="#34c759"><Finished /></el-icon>
+        <span>同意意见</span>
+      </div>
+      <div class="approve-comment-list">
+        <div
+          v-for="record in approvedCommentRecords"
+          :key="`${record.taskId}-${record.endTime}`"
+          class="ap-row"
+        >
+          <div class="ap-main">
+            <span class="ap-node-dot"></span>
+            <span class="ap-node">{{ record.nodeLabel }}</span>
+            <span class="ap-by">{{ record.assignee || record.operatorId }}</span>
+          </div>
+          <div class="ap-time">{{ fmtDate(record.endTime) }}</div>
+          <div class="ap-comment">{{ record.comment }}</div>
+        </div>
+      </div>
+    </template>
+
     <!-- ── 驳回轨迹（有驳回时展示）── -->
     <template v-if="data?.hasRejectHistory">
       <div class="reject-track-header">
@@ -238,6 +261,25 @@ const getActiveTasks = (nodeId) =>
 
 const getNodeRecords = (nodeId) =>
   (props.data?.completedRecords || []).filter(r => r.nodeId === nodeId)
+
+const nodeLabelMap = computed(() => {
+  const map = {}
+  ;(props.data?.nodes || []).forEach(node => {
+    if (node.id) map[node.id] = node.label || node.id
+  })
+  return map
+})
+
+const getNodeLabel = (nodeId) => nodeLabelMap.value[nodeId] || nodeId || '-'
+
+const approvedCommentRecords = computed(() =>
+  (props.data?.completedRecords || [])
+    .filter(r => r.outcome === 'approved' && String(r.comment || '').trim())
+    .map(r => ({
+      ...r,
+      nodeLabel: getNodeLabel(r.nodeId),
+    }))
+)
 
 // ── 节点默认尺寸（与后端 BuildNode 默认值对齐）─────────────────────────
 const NODE_SIZE = {
@@ -786,7 +828,44 @@ onBeforeUnmount(() => {
 .node-card-fade-enter-from   { opacity: 0; transform: translateY(-4px) scale(.97); }
 .node-card-fade-leave-to     { opacity: 0; transform: translateY(-4px) scale(.97); }
 
-/* ── 驳回轨迹 ── */
+/* ── 同意意见 / 驳回轨迹 ── */
+.approve-comment-header {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 700; color: #167c3a;
+  padding: 4px 2px;
+}
+.approve-comment-list { display: flex; flex-direction: column; gap: 6px; }
+.ap-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+.ap-main {
+  display: flex; align-items: center; gap: 6px;
+  font-weight: 600;
+}
+.ap-node-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  background: #34c759;
+}
+.ap-node { color: #14532d; }
+.ap-by {
+  font-size: 11px;
+  background: #dcfce7; border-radius: 4px;
+  padding: 1px 6px; color: #166534;
+}
+.ap-time  { font-size: 11px; color: #9ca3af; margin-left: auto; }
+.ap-comment {
+  width: 100%;
+  font-size: 12px; color: #14532d;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .reject-track-header {
   display: flex; align-items: center; gap: 6px;
   font-size: 12px; font-weight: 700; color: #b45309;
