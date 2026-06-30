@@ -129,7 +129,11 @@
                 </div>
 
                 <!-- iframe 区域 -->
-                <div class="node-iframe-wrap">
+                <div
+                  :ref="el => setIframeWrapRef(node.nodeKey, el)"
+                  class="node-iframe-wrap"
+                  :class="{ 'is-fullscreen': iframeFullscreenNodeKey === node.nodeKey }"
+                >
                   <!-- 加载中遮罩 -->
                   <div
                     v-if="iframeLoadingMap[node.nodeKey]"
@@ -140,6 +144,20 @@
                   </div>
 
                   <!-- 有只读 URL：渲染 iframe -->
+                  <button
+                    v-if="buildReadonlyUrl(node) && !iframeLoadingMap[node.nodeKey] && !iframeErrorMap[node.nodeKey]"
+                    class="iframe-fs-btn"
+                    :title="iframeFullscreenNodeKey === node.nodeKey ? '退出全屏' : '全屏查看'"
+                    @click="toggleIframeFullscreen(node.nodeKey)"
+                  >
+                    <svg v-if="iframeFullscreenNodeKey !== node.nodeKey" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                    </svg>
+                    <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+                    </svg>
+                  </button>
+
                   <iframe
                     v-if="buildReadonlyUrl(node)"
                     :key="`${node.nodeKey}-${iframeRetryMap[node.nodeKey] ?? 0}`"
@@ -147,6 +165,7 @@
                     class="node-iframe"
                     :class="{ 'iframe-hidden': iframeLoadingMap[node.nodeKey] }"
                     frameborder="0"
+                    allowfullscreen
                     @load="onIframeLoad(node.nodeKey)"
                     @error="onIframeError(node.nodeKey)"
                   />
@@ -180,7 +199,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import {
   Document, Share, List, Loading, Tickets,
   User, Clock, ChatDotRound,
@@ -325,6 +344,77 @@ const iframeLoadingMap = ref({})  // nodeKey → boolean（加载中）
 const iframeErrorMap   = ref({})  // nodeKey → boolean（加载失败）
 const iframeRetryMap   = ref({})  // nodeKey → number（重试计数，触发 URL 重算）
 const activeTab        = ref('')
+const iframeWrapRefs = ref({})
+const iframeFullscreenNodeKey = ref('')
+
+function setIframeWrapRef(nodeKey, el) {
+  if (el) {
+    iframeWrapRefs.value[nodeKey] = el
+  } else {
+    delete iframeWrapRefs.value[nodeKey]
+  }
+}
+
+function getFullscreenElement() {
+  return document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.msFullscreenElement ||
+    null
+}
+
+async function enterIframeFullscreen(nodeKey) {
+  const el = iframeWrapRefs.value[nodeKey]
+  if (!el) {
+    iframeFullscreenNodeKey.value = nodeKey
+    return
+  }
+
+  const requestFullscreen =
+    el.requestFullscreen ||
+    el.webkitRequestFullscreen ||
+    el.msRequestFullscreen
+
+  if (requestFullscreen) {
+    await requestFullscreen.call(el)
+  }
+  iframeFullscreenNodeKey.value = nodeKey
+}
+
+async function exitIframeFullscreen() {
+  const exitFullscreen =
+    document.exitFullscreen ||
+    document.webkitExitFullscreen ||
+    document.msExitFullscreen
+
+  if (getFullscreenElement() && exitFullscreen) {
+    await exitFullscreen.call(document)
+  }
+  iframeFullscreenNodeKey.value = ''
+}
+
+async function toggleIframeFullscreen(nodeKey) {
+  try {
+    if (iframeFullscreenNodeKey.value === nodeKey) {
+      await exitIframeFullscreen()
+    } else {
+      await enterIframeFullscreen(nodeKey)
+    }
+  } catch {
+    iframeFullscreenNodeKey.value = iframeFullscreenNodeKey.value === nodeKey ? '' : nodeKey
+  }
+}
+
+function syncIframeFullscreenState() {
+  const fullscreenEl = getFullscreenElement()
+  if (!fullscreenEl) {
+    iframeFullscreenNodeKey.value = ''
+    return
+  }
+
+  const matched = Object.entries(iframeWrapRefs.value)
+    .find(([, el]) => el === fullscreenEl)
+  iframeFullscreenNodeKey.value = matched?.[0] ?? ''
+}
 
 // Tab 切换时初始化该节点 iframe 状态
 watch(activeTab, (nodeKey) => {
@@ -395,6 +485,25 @@ watch(() => props.modelValue, (visible) => {
     iframeLoadingMap.value = {}
     iframeErrorMap.value   = {}
     iframeRetryMap.value   = {}
+    if (getFullscreenElement()) {
+      exitIframeFullscreen()
+    }
+    iframeFullscreenNodeKey.value = ''
+  }
+})
+
+onMounted(() => {
+  document.addEventListener('fullscreenchange', syncIframeFullscreenState)
+  document.addEventListener('webkitfullscreenchange', syncIframeFullscreenState)
+  document.addEventListener('MSFullscreenChange', syncIframeFullscreenState)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', syncIframeFullscreenState)
+  document.removeEventListener('webkitfullscreenchange', syncIframeFullscreenState)
+  document.removeEventListener('MSFullscreenChange', syncIframeFullscreenState)
+  if (getFullscreenElement()) {
+    exitIframeFullscreen()
   }
 })
 </script>
@@ -501,6 +610,40 @@ watch(() => props.modelValue, (visible) => {
   height: 600px;
   background: var(--wf-bg);
 }
+
+.node-iframe-wrap.is-fullscreen,
+.node-iframe-wrap:fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  background: var(--wf-canvas);
+}
+
+.iframe-fs-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  padding: 0;
+}
+.node-iframe-wrap:hover .iframe-fs-btn { opacity: 1; }
+.node-iframe-wrap.is-fullscreen .iframe-fs-btn { opacity: 1; }
+.iframe-fs-btn:hover { background: rgba(0,0,0,0.65); }
 
 .node-iframe {
   width: 100%;
