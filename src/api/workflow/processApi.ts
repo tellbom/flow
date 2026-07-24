@@ -71,6 +71,7 @@ export interface DeployNodeSummary {
   roleKey:           string
   assigneeMode:      string   // 'single' | 'multiple'
   callbackUrl:       string
+  canReassign:       boolean
   slotCount:         number
 }
 
@@ -88,6 +89,7 @@ export interface NodeConfigDetail {
   assigneeMode:      string
   callbackUrl:       string
   canReject:         boolean
+  canReassign:       boolean
   rejectOptions:     RejectOption[]
   isRejectTarget:    boolean
   rejectCode:        string
@@ -200,6 +202,9 @@ export interface PendingTaskDto {
   /** 当前节点是否可以驳回 */
   canReject:    boolean
 
+  /** 当前节点是否允许转派；只有 true 时展示转派入口 */
+  canReassign:  boolean
+
   /** 驳回配置列表 */
   rejectOptions: RejectOption[]
 
@@ -236,8 +241,8 @@ export interface GetPendingTasksParams {
   TaskId?:      string
   businessId?:  string
   BusinessId?:  string
-  businessType?: string
-  BusinessType?: string
+  businessType?: string[]
+  BusinessType?: string[]
   pageIndex?:   number
   PageIndex?:   number
   pageSize?:    number
@@ -655,6 +660,7 @@ export function getPendingTasks(params: GetPendingTasksParams = {}) {
     url:    '/api/tasks/pending',
     method: 'GET',
     params: normalizedParams,
+    paramsSerializer: { indexes: null },
   })
 }
 

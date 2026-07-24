@@ -42,7 +42,12 @@
             :loading="submitting === 'reject'"
             @click="openRejectDialog"
           >驳回</el-button>
-          <el-button :icon="Switch" plain @click="reassignDialogVisible = true">转派</el-button>
+          <el-button
+            v-if="taskInfo?.canReassign"
+            :icon="Switch"
+            plain
+            @click="reassignDialogVisible = true"
+          >转派</el-button>
         </div>
 
         <div class="header-readonly-badge" v-else>

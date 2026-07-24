@@ -123,18 +123,22 @@ const pagination   = reactive({ pageIndex: 1, pageSize: 20 })
 const loading      = ref(false)
 
 const normalizeQueryValue = (value) => Array.isArray(value) ? value[0] : value
+const normalizeQueryValues = (value) => {
+  if (Array.isArray(value)) return value.filter(Boolean)
+  return value ? [value] : []
+}
 
 function syncSearchFromRoute() {
   const keyword = normalizeQueryValue(route.query.keyword)
   const taskId = normalizeQueryValue(route.query.taskId)
   const businessId = normalizeQueryValue(route.query.businessId)
-  const businessType = normalizeQueryValue(route.query.businessType)
+  const businessType = normalizeQueryValues(route.query.businessType)
 
   searchParams.value = {
     ...(keyword ? { keyword } : {}),
     ...(taskId ? { taskId } : {}),
     ...(businessId ? { businessId } : {}),
-    ...(businessType ? { businessType } : {}),
+    ...(businessType.length ? { businessType } : {}),
   }
 }
 
@@ -146,6 +150,7 @@ const searchFields = [
   },
   {
     prop: 'businessType', label: '业务类型', type: 'select', width: '160px',
+    multiple: true,
     options: Object.entries(businessTypeMap).map(([k, v]) => ({ value: k, label: v.label })),
   },
   {
@@ -192,7 +197,9 @@ async function loadTodoList() {
       keyword: searchParams.value.keyword || undefined,
       taskId: searchParams.value.taskId || undefined,
       businessId: searchParams.value.businessId || undefined,
-      businessType: searchParams.value.businessType || undefined,
+      businessType: searchParams.value.businessType?.length
+        ? searchParams.value.businessType
+        : undefined,
       pageIndex: pagination.pageIndex,
       pageSize: pagination.pageSize,
     })
@@ -247,6 +254,7 @@ const openApproveDrawer = async (row) => {
     createTime:    row.createTime,
     isAfterConvergencePoint: row.isAfterConvergencePoint ?? false,
     canReject:     row.canReject      ?? false,
+    canReassign:   row.canReassign    ?? false,
     rejectOptions: row.rejectOptions  ?? [],
     requiredSlots: row.requiredSlots  ?? [],
     slotRecommendedUsers: row.slotRecommendedUsers ?? {},
