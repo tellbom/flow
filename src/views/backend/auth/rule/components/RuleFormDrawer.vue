@@ -403,6 +403,8 @@ function handleTypeChange(type: string | number | boolean | undefined) {
     formData.url       = ''
     formData.component = ''
     formData.keepalive = false
+  } else if (ruleType === 'menu' && !formData.menuType) {
+    formData.menuType = 'tab'
   }
   if (formData.ruleCode) {
     formData.permissionCode = buildPermissionCode(formData.ruleCode, ruleType)
@@ -456,6 +458,7 @@ async function handleSubmit() {
       ElMessage.success('规则创建成功')
     } else {
       const payload: RuleUpdateForm = {
+        type:            formData.type,
         title:          formData.title.trim()          || null,
         permissionCode: formData.permissionCode.trim() || null,
         name:           formData.name.trim()           || null,

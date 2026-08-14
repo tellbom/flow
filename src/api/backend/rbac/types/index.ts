@@ -217,6 +217,7 @@ export interface RuleItem {
     icon: string
     name?: string
     path?: string
+    menuType?: string
     menu_type?: string
     url?: string
     component?: string
@@ -248,6 +249,7 @@ export interface RuleCreateForm {
 
 /** PUT /api/rule/{ruleCode} 请求体（null 字段不修改，parentRuleCode: "" 提升为根） */
 export interface RuleUpdateForm {
+    type?: RuleType | 'menu_dir' | 'menu' | 'button' | null
     title?: string | null
     name?: string | null
     path?: string | null
