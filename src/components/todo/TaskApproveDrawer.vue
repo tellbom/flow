@@ -11,7 +11,7 @@
     <template #header>
       <div class="drawer-header">
         <div class="header-title-block">
-          <div class="header-task-name">{{ taskInfo?.taskName || '审批任务' }}</div>
+          <div class="header-task-name">{{ taskInfo?.businessDisplayName || taskInfo?.taskName || '审批任务' }}</div>
           <div class="header-meta">
             <el-tag
               :type="businessTypeMap[taskInfo?.businessType]?.color || 'info'"
@@ -23,6 +23,7 @@
               size="small" round
             >{{ priorityMap[taskInfo?.priority]?.label || '普通' }}</el-tag>
             <span class="header-bid">{{ taskInfo?.businessId }}</span>
+            <span v-if="taskInfo?.taskName" class="header-node">{{ taskInfo.taskName }}</span>
           </div>
         </div>
 
@@ -63,6 +64,20 @@
         <!-- ─── Tab1：业务表单 + 选人区 ─── -->
         <el-tab-pane label="审批表单" name="form">
           <div class="tab-form-content">
+
+            <div class="business-context-card">
+              <div class="business-context-main">
+                <span class="business-context-label">当前要做</span>
+                <span class="business-context-description">{{ taskInfo?.actionDescription || taskInfo?.taskName }}</span>
+              </div>
+              <div class="business-context-meta">
+                <span>发起人：{{ taskInfo?.createdBy || '--' }}</span>
+                <span>当前处理人：{{ taskInfo?.assignee || '--' }}</span>
+                <span v-if="taskInfo?.dueDate" :class="{ 'is-overdue': taskInfo?.isOverdue }">
+                  截止时间：{{ formatContextTime(taskInfo.dueDate) }}
+                </span>
+              </div>
+            </div>
 
             <!-- ── iframe 区域 ── -->
             <div ref="iframeSectionEl" class="iframe-section" :class="{ 'is-fullscreen': iframeFullscreen }">
@@ -874,6 +889,13 @@ const handleClose = (done) => {
   done()
 }
 
+const formatContextTime = (value) => {
+  if (!value) return '--'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('zh-CN', { hour12: false })
+}
+
 onMounted(() => {
   document.addEventListener('fullscreenchange', syncIframeFullscreenState)
   document.addEventListener('webkitfullscreenchange', syncIframeFullscreenState)
@@ -925,6 +947,7 @@ onBeforeUnmount(() => {
 .header-task-name   { font-size: var(--wf-font-lg); font-weight: var(--wf-font-weight-bold); color: var(--wf-ink); margin-bottom: 2px; letter-spacing: -0.3px; line-height: 1.25; }
 .header-meta        { display: flex; align-items: center; gap: var(--wf-space-8); flex-wrap: wrap; }
 .header-bid         { font-size: var(--wf-font-sm); color: var(--wf-ink-disabled); font-family: 'SF Mono', 'Consolas', monospace; }
+.header-node        { font-size: var(--wf-font-sm); color: var(--wf-ink-2); }
 .header-actions     { display: flex; align-items: center; gap: var(--wf-space-8); flex-shrink: 0; }
 :deep(.header-actions .el-button) { border-radius: var(--wf-radius-sm); font-weight: var(--wf-font-weight-semibold); }
 
@@ -949,6 +972,31 @@ onBeforeUnmount(() => {
   flex-direction: column;
   overflow: hidden;        /* 必须 hidden，子区块在容器内部分配高度，不允许父容器自身撑高 */
 }
+
+.business-context-card {
+  flex-shrink: 0;
+  padding: 10px 20px;
+  background: var(--wf-primary-light);
+  border-bottom: 1px solid var(--wf-divider);
+}
+.business-context-main { display: flex; align-items: flex-start; gap: var(--wf-space-8); }
+.business-context-label {
+  flex-shrink: 0;
+  font-size: var(--wf-font-xs);
+  color: var(--wf-primary);
+  font-weight: var(--wf-font-weight-bold);
+  padding-top: 2px;
+}
+.business-context-description { color: var(--wf-ink); font-size: var(--wf-font-sm); line-height: 1.5; }
+.business-context-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wf-space-16);
+  margin-top: var(--wf-space-4);
+  color: var(--wf-ink-3);
+  font-size: var(--wf-font-xs);
+}
+.business-context-meta .is-overdue { color: var(--wf-danger); font-weight: var(--wf-font-weight-semibold); }
 
 /* ── iframe 区域 ──
    flex:1 撑满父容器剩余空间。

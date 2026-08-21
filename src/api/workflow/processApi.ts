@@ -157,11 +157,31 @@ export interface PendingTaskDto {
   /** 任务名称（来自 BPMN userTask name） */
   taskName:     string
 
+  processInstanceId: string
+  processDefinitionKey: string
+  processDefinitionVersion: number | null
+  taskDefinitionKey: string
+
   /** 业务 ID */
   businessId:   string
 
   /** 业务类型 */
   businessType: string
+
+  /** 发起时填写的业务标题；允许为空 */
+  businessTitle: string | null
+
+  /** 列表主标题；业务标题为空时由后端回退到 businessId */
+  businessDisplayName: string
+
+  /** 发起人工号 */
+  createdBy: string | null
+
+  /** 流程发起时间 */
+  processCreatedTime: string
+
+  /** 流程实例状态，例如 running */
+  processStatus: string
 
   /**
    * 节点业务语义
@@ -176,6 +196,17 @@ export interface PendingTaskDto {
    * V1.3：仅表示“谁处理当前节点”，不能用于下游 slot 推荐人组装。
    */
   roleKey:      string
+
+  /** 发起人针对当前节点填写的实例级详细说明；允许为空 */
+  nodeDescription: string | null
+
+  /** 列表可直接展示的操作说明；未填写节点说明时由后端生成回退文案 */
+  actionDescription: string
+
+  assignee: string | null
+  owner: string | null
+  dueDate: string | null
+  isOverdue: boolean
 
   /**
    * 原始页面配置编码

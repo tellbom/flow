@@ -52,8 +52,14 @@
       <!-- 任务名称列 -->
       <template #taskName="{ row }">
         <div class="task-name-cell">
-          <div class="task-main">{{ row.taskName }}</div>
-          <div class="task-sub">{{ row.businessId }}</div>
+          <div class="task-main">{{ row.businessDisplayName || row.businessTitle || row.businessId }}</div>
+          <div class="task-sub">
+            <span class="task-node">{{ row.taskName }}</span>
+            <span>{{ row.businessId }}</span>
+          </div>
+          <div class="task-action" :title="row.actionDescription">
+            {{ row.actionDescription || row.nodeDescription || `请处理当前节点：${row.taskName}` }}
+          </div>
         </div>
       </template>
 
@@ -74,6 +80,12 @@
           <span class="priority-dot" :class="`p-${row.priority}`"></span>
           {{ priorityMap[row.priority]?.label || '普通' }}
         </el-tag>
+      </template>
+
+      <template #dueDate="{ row }">
+        <el-tag v-if="row.isOverdue" type="danger" size="small" effect="light">已逾期</el-tag>
+        <span v-else-if="row.dueDate" class="due-time">{{ formatDateTime(row.dueDate) }}</span>
+        <span v-else class="no-deadline">无截止时间</span>
       </template>
 
       <!-- 操作列 -->
@@ -164,12 +176,20 @@ const searchFields = [
 
 // ── 表格列配置 ────────────────────────────────
 const tableColumns = [
-  { prop: 'taskName',         label: '任务名称',  minWidth: 200 },
+  { prop: 'taskName',         label: '业务 / 待办内容', minWidth: 360 },
   { prop: 'businessType',     label: '业务类型',  width: 120    },
-  { prop: 'businessId',       label: '业务ID',    width: 148    },
+  { prop: 'createdBy',        label: '发起人',    width: 100    },
   { prop: 'priority',         label: '优先级',    width: 90     },
-  { prop: 'createTime',       label: '创建时间',  width: 170    },
+  { prop: 'createTime',       label: '待办到达时间', width: 170 },
+  { prop: 'dueDate',          label: '截止状态',  width: 150    },
 ]
+
+const formatDateTime = (value) => {
+  if (!value) return '--'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('zh-CN', { hour12: false })
+}
 
 const headerStats = computed(() => {
   const list = todoList.value
@@ -244,10 +264,25 @@ const openApproveDrawer = async (row) => {
   currentTask.value = {
     taskId:        row.taskId,
     taskName:      row.taskName,
+    processInstanceId: row.processInstanceId,
+    processDefinitionKey: row.processDefinitionKey,
+    processDefinitionVersion: row.processDefinitionVersion ?? null,
+    taskDefinitionKey: row.taskDefinitionKey,
     businessId:    row.businessId,
     businessType:  row.businessType,
+    businessTitle: row.businessTitle ?? null,
+    businessDisplayName: row.businessDisplayName || row.businessTitle || row.businessId,
+    createdBy: row.createdBy ?? '',
+    processCreatedTime: row.processCreatedTime,
+    processStatus: row.processStatus,
     nodeSemantic:  row.nodeSemantic,
     roleKey:       row.roleKey ?? '',
+    nodeDescription: row.nodeDescription ?? null,
+    actionDescription: row.actionDescription || row.nodeDescription || `请处理当前节点：${row.taskName}`,
+    assignee: row.assignee ?? null,
+    owner: row.owner ?? null,
+    dueDate: row.dueDate ?? null,
+    isOverdue: row.isOverdue ?? false,
     pageCode:      row.pageCode,
     pageUrl:       row.pageUrl ?? null,
     priority:      row.priority,
@@ -397,6 +432,35 @@ watch(
 .task-sub {
   font-size: var(--wf-font-sm);
   color: var(--wf-ink-3);
+  display: flex;
+  align-items: center;
+  gap: var(--wf-space-8);
+}
+
+.task-node {
+  color: var(--wf-primary);
+  font-weight: var(--wf-font-weight-semibold);
+}
+
+.task-action {
+  margin-top: var(--wf-space-2);
+  font-size: var(--wf-font-sm);
+  color: var(--wf-ink-2);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.due-time {
+  color: var(--wf-ink-2);
+  font-size: var(--wf-font-sm);
+}
+
+.no-deadline {
+  color: var(--wf-ink-disabled);
+  font-size: var(--wf-font-sm);
 }
 
 .priority-dot {
