@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flowgraph record layout regression</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; background: #f5f7fa; font-family: Arial, sans-serif; }
+    .node-hover-card { position: static !important; }
+  </style>
+</head>
+<body>
+  <div class="node-hover-card">
+    <div class="nc-section-title">审批记录</div>
+    <div class="nc-record-row">
+      <div class="nc-avatar">U</div>
+      <div class="nc-info">
+        <div class="nc-name">
+          <span class="nc-operator-name" title="UI_APPROVER_SECOND_LONG_NAME">UI_APPROVER_SECOND_LONG_NAME</span>
+          <span class="nc-round-badge">第12次</span>
+        </div>
+        <div class="nc-meta">9/1 11:01 · 5分钟</div>
+      </div>
+      <div class="nc-outcome-tag outcome-approved">通过</div>
+    </div>
+  </div>
+  <pre id="result"></pre>
+  <script type="module">
+    const source = await fetch(`../../src/components/todo/Flowgraph.vue?test=${Date.now()}`, { cache: 'no-store' })
+      .then(response => response.text())
+    const styleMatch = source.match(/<style scoped>([\s\S]*?)<\/style>/)
+    if (!styleMatch) throw new Error('Flowgraph scoped styles were not found')
+    const style = document.createElement('style')
+    style.textContent = styleMatch[1]
+    document.head.appendChild(style)
+
+    await document.fonts.ready
+    const card = document.querySelector('.node-hover-card')
+    const row = document.querySelector('.nc-record-row')
+    const round = document.querySelector('.nc-round-badge')
+    const outcome = document.querySelector('.nc-outcome-tag')
+    const operator = document.querySelector('.nc-operator-name')
+    const result = {
+      cardFitsViewport: card.getBoundingClientRect().right <= document.documentElement.clientWidth,
+      rowHasNoHorizontalOverflow: row.scrollWidth <= row.clientWidth,
+      roundIsSingleLine: round.getBoundingClientRect().height <= 20 && getComputedStyle(round).whiteSpace === 'nowrap',
+      outcomeIsSingleLine: outcome.getBoundingClientRect().height <= 20 && getComputedStyle(outcome).whiteSpace === 'nowrap',
+      operatorCanYieldSpace: getComputedStyle(operator).minWidth === '0px' && getComputedStyle(operator).overflow === 'hidden',
+    }
+    result.passed = Object.values(result).every(Boolean)
+    window.layoutResult = result
+    document.querySelector('#result').textContent = JSON.stringify(result, null, 2)
+    document.body.dataset.testStatus = result.passed ? 'passed' : 'failed'
+  </script>
+</body>
+</html>

@@ -104,7 +104,9 @@
               </div>
               <div class="nc-info">
                 <div class="nc-name">
-                  {{ getApprovalRecordOperator(r) }}
+                  <span class="nc-operator-name" :title="getApprovalRecordOperator(r)">
+                    {{ getApprovalRecordOperator(r) }}
+                  </span>
                   <span v-if="r.round > 1" class="nc-round-badge">第{{ r.round }}次</span>
                 </div>
                 <div class="nc-meta">{{ fmtDate(r.endTime) }} · {{ fmtDuration(r.durationSeconds) }}</div>
@@ -715,7 +717,7 @@ onBeforeUnmount(() => {
 .node-hover-card {
   position: fixed;
   z-index: 9999;
-  width: 288px;
+  width: min(340px, calc(100vw - 24px));
   background: #fff;
   border-radius: 14px;
   box-shadow: 0 8px 32px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.08);
@@ -764,13 +766,20 @@ onBeforeUnmount(() => {
 .nc-info { flex: 1; min-width: 0; }
 .nc-name {
   font-size: 13px; font-weight: 600; color: #1a1a1a;
-  display: flex; align-items: center; gap: 5px;
+  display: flex; align-items: center; gap: 5px; min-width: 0;
+}
+.nc-operator-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .nc-meta { font-size: 11px; color: #aaa; margin-top: 2px; }
 .nc-round-badge {
   font-size: 10px; font-weight: 600; color: #f59e0b;
   background: #fffbeb; border: 1px solid #fde68a;
   border-radius: 4px; padding: 1px 4px; line-height: 1.4;
+  flex-shrink: 0; white-space: nowrap;
 }
 .nc-status-dot {
   width: 8px; height: 8px; border-radius: 50%;
@@ -786,7 +795,9 @@ onBeforeUnmount(() => {
 
 /* 历史记录行 */
 .nc-record-row {
-  display: flex; align-items: flex-start; gap: 10px;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) max-content;
+  align-items: flex-start; gap: 10px;
   padding: 8px 14px;
   border-top: 1px solid #fafafa;
 }
@@ -796,6 +807,7 @@ onBeforeUnmount(() => {
   padding: 2px 7px;
   border-radius: 6px;
   font-size: 10px; font-weight: 700;
+  white-space: nowrap;
 }
 .outcome-approved          { background: #d1fae5; color: #065f46; }
 .outcome-rejected_terminate { background: #fee2e2; color: #991b1b; }
