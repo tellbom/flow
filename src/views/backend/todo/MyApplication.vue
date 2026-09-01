@@ -154,6 +154,7 @@ import { useAdminInfo } from "/@/stores/adminInfo"
 import Commonsearch         from "/@/components/claudetable/Commonsearch.vue"
 import Commontable          from "/@/components/claudetable/Commontable.vue"
 import ApplicationViewDrawer from "/@/components/todo/ApplicationViewDrawer.vue"
+import { buildApplicationHistoryNodes } from "/@/workflow-shared/approvalHistory.js"
 import StatusTag from "/@/workflow-shared/StatusTag.vue"
 import {
   getProcessList,
@@ -360,34 +361,11 @@ const openViewDrawer = async (row) => {
   if (nodesRes.status !== "fulfilled") return
 
   const progress = nodesRes.value
-  const roundCounter = {}
-
-  const historyNodes = (progress.auditHistory ?? []).map((record) => {
-    const baseKey = record.taskDefinitionKey
-    roundCounter[baseKey] = (roundCounter[baseKey] ?? 0) + 1
-    const round = roundCounter[baseKey]
-    const nodeKey = round > 1 ? `${baseKey}__round${round}` : baseKey
-
-    return {
-      nodeKey,
-      nodeName:       record.nodeName ?? baseKey,
-      nodeSemantic:   record.nodeSemantic ?? "",
-      operator:       record.operatorId ?? "",
-      completedAt:    record.operatedAt ?? null,
-      approveComment: record.comment ?? null,
-      pageCode:       record.pageCode ?? null,
-      slotSelections: record.slotSelections ?? [],
-      outcome:        record.action === "approve"
-        ? "approved"
-        : record.action === "reject"
-          ? "rejected_terminate"
-          : "",
-      round,
-    }
-  })
+  const historyNodes = buildApplicationHistoryNodes(progress.auditHistory)
 
   const activeNodes = (progress.currentNodes ?? []).map((node) => ({
-    nodeKey:        node.nodeId ?? node.taskId ?? "",
+    nodeKey:        node.taskId ?? "",
+    nodeId:         node.nodeId ?? "",
     nodeName:       node.nodeName ?? "",
     nodeSemantic:   node.nodeSemantic ?? "",
     operator:       node.assignee ?? "",

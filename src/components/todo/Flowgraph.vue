@@ -100,11 +100,11 @@
               class="nc-record-row"
             >
               <div class="nc-avatar" :style="{ background: outcomeAvatarBg(r.outcome) }">
-                {{ r.assignee?.[0] || '?' }}
+                {{ getApprovalRecordOperator(r)?.[0] || '?' }}
               </div>
               <div class="nc-info">
                 <div class="nc-name">
-                  {{ r.assignee }}
+                  {{ getApprovalRecordOperator(r) }}
                   <span v-if="r.round > 1" class="nc-round-badge">第{{ r.round }}次</span>
                 </div>
                 <div class="nc-meta">{{ fmtDate(r.endTime) }} · {{ fmtDuration(r.durationSeconds) }}</div>
@@ -150,7 +150,7 @@
           <div class="ap-main">
             <span class="ap-node-dot"></span>
             <span class="ap-node">{{ record.nodeLabel }}</span>
-            <span class="ap-by">{{ record.assignee || record.operatorId }}</span>
+            <span class="ap-by">{{ getApprovalRecordOperator(record) }}</span>
           </div>
           <div class="ap-time">{{ fmtDate(record.endTime) }}</div>
           <div class="ap-comment">{{ record.comment }}</div>
@@ -199,6 +199,7 @@ import {
   Warning, CircleClose, ZoomIn, ZoomOut, FullScreen,
   Clock, Finished, User, ArrowLeft
 } from '@element-plus/icons-vue'
+import { getApprovalRecordOperator } from '/@/workflow-shared/approvalHistory.js'
 
 // ── Props ──────────────────────────────────────────────────────────────
 const props = defineProps({

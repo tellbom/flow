@@ -212,6 +212,7 @@ import {
   outcomeTagType, outcomeLabel,
   formatDate,
 } from '/@/workflow-shared/workflowUtils.js'
+import { buildAuditHistoryMap } from '/@/workflow-shared/approvalHistory.js'
 
 // ── Props ──────────────────────────────────────────────────────
 const props = defineProps({
@@ -226,7 +227,8 @@ const props = defineProps({
   /**
    * nodes — 由父组件（MyApplication.openViewDrawer）传入
    * 结构：{
-   *   nodeKey:       string       taskDefinitionKey（含 __round{n} 后缀区分多轮）
+   *   nodeKey:       string       Flowable taskId（每次节点执行唯一）
+   *   nodeId:        string       taskDefinitionKey
    *   nodeName:      string
    *   nodeSemantic:  string
    *   operator:      string       工号
@@ -257,7 +259,7 @@ const drawerVisible = computed({
 //  此处懒加载用于补全 nodes 中父组件未映射的字段。
 // ══════════════════════════════════════════════════════════════
 
-const auditHistoryMap = ref({})   // taskDefinitionKey → AuditRecordDto（最新轮）
+const auditHistoryMap = ref({})   // taskId → AuditRecordDto
 const auditLoading    = ref(false)
 
 async function loadAuditHistory(businessId) {
@@ -265,15 +267,7 @@ async function loadAuditHistory(businessId) {
   auditLoading.value = true
   try {
     const items = await getAuditHistory(businessId)
-    const map = {}
-    ;(items ?? []).forEach(item => {
-      const key = item.taskDefinitionKey
-      // 同一节点多轮取操作时间最新的一条
-      if (!map[key] || item.operatedAt > map[key].operatedAt) {
-        map[key] = item
-      }
-    })
-    auditHistoryMap.value = map
+    auditHistoryMap.value = buildAuditHistoryMap(items)
   } catch { /* 失败不影响基础展示 */ } finally {
     auditLoading.value = false
   }
@@ -285,9 +279,7 @@ async function loadAuditHistory(businessId) {
 
 const resolvedNodes = computed(() => {
   return (props.nodes ?? []).map(node => {
-    // 去掉 __round{n} 后缀还原基础 key，用于查 auditHistoryMap
-    const baseKey = node.nodeKey.split('__round')[0]
-    const hist    = auditHistoryMap.value[baseKey]
+    const hist = auditHistoryMap.value[node.nodeKey]
 
     return {
       ...node,
@@ -325,7 +317,7 @@ function buildReadonlyUrl(node) {
     const url = new URL(pageCode)
     // 基础上下文参数
     url.searchParams.set('businessId',        props.appInfo?.businessId ?? '')
-    url.searchParams.set('taskDefinitionKey', node.nodeKey.split('__round')[0])
+    url.searchParams.set('taskDefinitionKey', node.nodeId)
     url.searchParams.set('mode',              'readonly')
     // 可选补充：操作轮次、操作人，业务系统可用于定位历史快照
     if (node.round > 1) url.searchParams.set('round', String(node.round))

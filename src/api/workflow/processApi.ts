@@ -422,6 +422,9 @@ export interface SlotSelectionRecordDto {
  * 对齐 AuditRecordDto.cs
  */
 export interface AuditRecordDto {
+  /** Flowable Task ID；节点驳回重走后仍保持唯一 */
+  taskId:            string
+
   /** taskDefinitionKey */
   taskDefinitionKey: string
 
